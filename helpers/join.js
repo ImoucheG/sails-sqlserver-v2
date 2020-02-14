@@ -141,10 +141,10 @@ module.exports = require('machine').build({
       //  ╦═╗╦ ╦╔╗╔  ┌┬┐┬ ┬┌─┐  ┌┐┌┌─┐┌┬┐┬┬  ┬┌─┐  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
       //  ╠╦╝║ ║║║║   │ ├─┤├┤   │││├─┤ │ │└┐┌┘├┤   │─┼┐│ │├┤ ├┬┘└┬┘
       //  ╩╚═╚═╝╝╚╝   ┴ ┴ ┴└─┘  ┘└┘┴ ┴ ┴ ┴ └┘ └─┘  └─┘└└─┘└─┘┴└─ ┴
-      Helpers.query.runNativeQuery(connection, compiledQuery.nativeQuery, compiledQuery.valuesToEscape, compiledQuery.meta, function parentQueryCb(err, parentResults) {
+      Helpers.query.runNativeQuery(connection, inputs.datastore.manager, compiledQuery.nativeQuery, compiledQuery.valuesToEscape, compiledQuery.meta, function parentQueryCb(err, parentResults) {
         if (err) {
           // Release the connection on error
-          Helpers.connection.releaseConnection(connection, leased, function releaseConnectionCb() {
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseConnectionCb() {
             return exits.error(err);
           });
           return;
@@ -153,7 +153,7 @@ module.exports = require('machine').build({
         // If there weren't any joins being performed or no parent records were
         // returned, release the connection and return the results.
         if (!_.has(inputs.query, 'joins') || !parentResults.length) {
-          Helpers.connection.releaseConnection(connection, leased, function releaseConnectionCb(err) {
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseConnectionCb(err) {
             if (err) {
               return exits.error(err);
             }
@@ -175,7 +175,7 @@ module.exports = require('machine').build({
           sortedResults = WLUtils.joins.detectChildrenRecords(primaryKeyColumnName, parentResults);
         } catch (e) {
           // Release the connection if there was an error.
-          Helpers.connection.releaseConnection(connection, leased, function releaseConnectionCb() {
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseConnectionCb() {
             return exits.error(e);
           });
           return;
@@ -194,7 +194,7 @@ module.exports = require('machine').build({
           });
         } catch (e) {
           // Release the connection if there was an error.
-          Helpers.connection.releaseConnection(connection, leased, function releaseConnectionCb() {
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseConnectionCb() {
             return exits.error(e);
           });
           return;
@@ -208,7 +208,7 @@ module.exports = require('machine').build({
           queryCache.setParents(sortedResults.parents);
         } catch (e) {
           // Release the connection if there was an error.
-          Helpers.connection.releaseConnection(connection, leased, function releaseConnectionCb() {
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseConnectionCb() {
             return exits.error(e);
           });
           return;
@@ -225,7 +225,7 @@ module.exports = require('machine').build({
         // statements that need to be processed. If not, close the connection and
         // return the combined results.
         if (!statements.childStatements || !statements.childStatements.length) {
-          Helpers.connection.releaseConnection(connection, leased, function releaseConnectionCb(err) {
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseConnectionCb(err) {
             if (err) {
               return exits.error(err);
             }
@@ -355,23 +355,23 @@ module.exports = require('machine').build({
           //  ╠╦╝║ ║║║║  │  ├─┤││   ││  │─┼┐│ │├┤ ├┬┘└┬┘
           //  ╩╚═╚═╝╝╚╝  └─┘┴ ┴┴┴─┘─┴┘  └─┘└└─┘└─┘┴└─ ┴
           // Run the native query
-          Helpers.query.runNativeQuery(connection, compiledQuery.nativeQuery, compiledQuery.valuesToEscape, compiledQuery.meta, function parentQueryCb(err, queryResults) {
-            if (err) {
-              return next(err);
-            }
+            Helpers.query.runNativeQuery(connection, inputs.datastore.manager, compiledQuery.nativeQuery, compiledQuery.valuesToEscape, compiledQuery.meta, function parentQueryCb(err, queryResults) {
+              if (err) {
+                return next(err);
+              }
 
-            // Extend the values in the cache to include the values from the
-            // child query.
-            queryCache.extend(queryResults, template.instructions);
+              // Extend the values in the cache to include the values from the
+              // child query.
+              queryCache.extend(queryResults, template.instructions);
 
-            return next();
-          });
+              return next();
+            });
         },
 
         function asyncEachCb(err) {
           // Always release the connection unless a leased connection from outside
           // the adapter was used.
-          Helpers.connection.releaseConnection(connection, leased, function releaseConnectionCb() {
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseConnectionCb() {
             if (err) {
               return exits.error(err);
             }

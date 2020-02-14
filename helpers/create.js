@@ -82,7 +82,6 @@ module.exports = require('machine').build({
       return exits.invalidDatastore();
     }
 
-
     // Set a flag if a leased connection from outside the adapter was used or not.
     var leased = _.has(query.meta, 'leasedConnection');
 
@@ -169,25 +168,26 @@ module.exports = require('machine').build({
       //  ╩╝╚╝╚═╝╚═╝╩╚═ ╩   ┴└─└─┘└─┘└─┘┴└──┴┘
       // Insert the record and return the new values
       Helpers.query.create({
-        connection: connection,
-        statement: statement,
-        fetch: fetchRecords,
-        primaryKey: primaryKeyColumnName
-      },
+          connection: connection,
+          manager: inputs.datastore.manager,
+          statement: statement,
+          fetch: fetchRecords,
+          primaryKey: primaryKeyColumnName
+        }, inputs.datastore.manager,
 
-      function createRecordCb(err, insertedRecords) {
-        // Release the connection if needed.
-        Helpers.connection.releaseConnection(connection, leased, function releaseCb() {
-          // If there was an error return it.
-          if (err) {
-            if (err.footprint && err.footprint.identity === 'notUnique') {
-              return exits.notUnique(err);
+        function createRecordCb(err, insertedRecords) {
+          // Release the connection if needed.
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseCb() {
+            // If there was an error return it.
+            if (err) {
+              if (err.footprint && err.footprint.identity === 'notUnique') {
+                return exits.notUnique(err);
+              }
+
+              return exits.error(err);
             }
 
-            return exits.error(err);
-          }
-
-          if (fetchRecords) {
+            if (fetchRecords) {
             // Process each record to normalize output
             try {
               Helpers.query.processEachRecord({

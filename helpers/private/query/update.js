@@ -14,7 +14,7 @@ var runQuery = require('./run-query');
 var compileStatement = require('./compile-statement');
 
 
-module.exports = function insertRecord(options, cb) {
+module.exports = function insertRecord(options, manager, cb) {
   //  ╦  ╦╔═╗╦  ╦╔╦╗╔═╗╔╦╗╔═╗  ┌─┐┌─┐┌┬┐┬┌─┐┌┐┌┌─┐
   //  ╚╗╔╝╠═╣║  ║ ║║╠═╣ ║ ║╣   │ │├─┘ │ ││ ││││└─┐
   //   ╚╝ ╩ ╩╩═╝╩═╩╝╩ ╩ ╩ ╚═╝  └─┘┴   ┴ ┴└─┘┘└┘└─┘
@@ -79,21 +79,21 @@ module.exports = function insertRecord(options, cb) {
     //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
     // Run the initial find query
     runQuery({
-      connection: options.connection,
-      nativeQuery: compiledFetchQuery.nativeQuery,
-      valuesToEscape: compiledFetchQuery.valuesToEscape,
-      meta: compiledFetchQuery.meta,
-      disconnectOnError: false,
-      queryType: 'select'
-    },
+        connection: options.connection,
+        nativeQuery: compiledFetchQuery.nativeQuery,
+        valuesToEscape: compiledFetchQuery.valuesToEscape,
+        meta: compiledFetchQuery.meta,
+        disconnectOnError: false,
+        queryType: 'select'
+      }, manager,
 
-    function runQueryCb(err, report) {
-      if (err) {
-        return proceed(err);
-      }
+      function runQueryCb(err, report) {
+        if (err) {
+          return proceed(err);
+        }
 
-      return proceed(undefined, report);
-    });
+        return proceed(undefined, report);
+      });
   })(function afterInitialFetchCb(err, selectReport) {
     if (err) {
       return cb(err);
@@ -116,23 +116,23 @@ module.exports = function insertRecord(options, cb) {
     //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
     // Run the initial query
     runQuery({
-      connection: options.connection,
-      nativeQuery: compiledUpdateQuery.nativeQuery,
-      valuesToEscape: compiledUpdateQuery.valuesToEscape,
-      meta: compiledUpdateQuery.meta,
-      disconnectOnError: false,
-      queryType: 'update'
-    },
+        connection: options.connection,
+        nativeQuery: compiledUpdateQuery.nativeQuery,
+        valuesToEscape: compiledUpdateQuery.valuesToEscape,
+        meta: compiledUpdateQuery.meta,
+        disconnectOnError: false,
+        queryType: 'update'
+      }, manager,
 
-    function runQueryCb(err, report) {
-      if (err) {
-        return cb(err);
-      }
+      function runQueryCb(err, report) {
+        if (err) {
+          return cb(err);
+        }
 
-      // If no fetch was used, then nothing else needs to be done.
-      if (!options.fetch) {
-        return cb(undefined, report.result);
-      }
+        // If no fetch was used, then nothing else needs to be done.
+        if (!options.fetch) {
+          return cb(undefined, report.result);
+        }
 
       //  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗  ┌┬┐┬ ┬┌─┐  ┌─┐┌─┐┌┬┐┌─┐┬ ┬
       //  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║   │ ├─┤├┤   ├┤ ├┤  │ │  ├─┤
@@ -194,7 +194,7 @@ module.exports = function insertRecord(options, cb) {
         meta: compiledFetchQuery.meta,
         disconnectOnError: false,
         queryType: 'select'
-      }, function runQueryCb(err, report) {
+      }, manager, function runQueryCb(err, report) {
         if (err) {
           return cb(err);
         }

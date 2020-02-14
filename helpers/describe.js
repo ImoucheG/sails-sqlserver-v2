@@ -57,33 +57,36 @@ module.exports = require('machine').build({
 
 
   fn: function describe(inputs, exits) {
-    // Dependencies
-    var _ = require('@sailshq/lodash');
-    var Helpers = require('./private');
 
-    // Set a flag if a leased connection from outside the adapter was used or not.
-    var leased = _.has(inputs.meta, 'leasedConnection');
+    // TODO: IMPLEMENTS
+    /**
+     // Dependencies
+     var _ = require('@sailshq/lodash');
+     var Helpers = require('./private');
 
-
-    //   ██████╗ ██╗   ██╗███████╗██████╗ ██╗███████╗███████╗
-    //  ██╔═══██╗██║   ██║██╔════╝██╔══██╗██║██╔════╝██╔════╝
-    //  ██║   ██║██║   ██║█████╗  ██████╔╝██║█████╗  ███████╗
-    //  ██║▄▄ ██║██║   ██║██╔══╝  ██╔══██╗██║██╔══╝  ╚════██║
-    //  ╚██████╔╝╚██████╔╝███████╗██║  ██║██║███████╗███████║
-    //   ╚══▀▀═╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝
-    //
-    // These native queries are responsible for describing a single table and the
-    // various attributes that make them.
-
-    var describeQuery = 'DESCRIBE ' + inputs.tableName;
-    var autoIncrementQuery = 'SHOW INDEX FROM ' + inputs.tableName;
+     // Set a flag if a leased connection from outside the adapter was used or not.
+     var leased = _.has(inputs.meta, 'leasedConnection');
 
 
-    //  ╔═╗╔═╗╔═╗╦ ╦╔╗╔  ┌─┐┌─┐┌┐┌┌┐┌┌─┐┌─┐┌┬┐┬┌─┐┌┐┌
-    //  ╚═╗╠═╝╠═╣║║║║║║  │  │ │││││││├┤ │   │ ││ ││││
-    //  ╚═╝╩  ╩ ╩╚╩╝╝╚╝  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
-    // Spawn a new connection to run the queries on.
-    Helpers.connection.spawnOrLeaseConnection(inputs.datastore, inputs.meta, function spawnConnectionCb(err, connection) {
+     //   ██████╗ ██╗   ██╗███████╗██████╗ ██╗███████╗███████╗
+     //  ██╔═══██╗██║   ██║██╔════╝██╔══██╗██║██╔════╝██╔════╝
+     //  ██║   ██║██║   ██║█████╗  ██████╔╝██║█████╗  ███████╗
+     //  ██║▄▄ ██║██║   ██║██╔══╝  ██╔══██╗██║██╔══╝  ╚════██║
+     //  ╚██████╔╝╚██████╔╝███████╗██║  ██║██║███████╗███████║
+     //   ╚══▀▀═╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝
+     //
+     // These native queries are responsible for describing a single table and the
+     // various attributes that make them.
+
+     var describeQuery = 'DESCRIBE ' + inputs.tableName;
+     var autoIncrementQuery = 'SHOW INDEX FROM ' + inputs.tableName;
+
+
+     //  ╔═╗╔═╗╔═╗╦ ╦╔╗╔  ┌─┐┌─┐┌┐┌┌┐┌┌─┐┌─┐┌┬┐┬┌─┐┌┐┌
+     //  ╚═╗╠═╝╠═╣║║║║║║  │  │ │││││││├┤ │   │ ││ ││││
+     //  ╚═╝╩  ╩ ╩╚╩╝╝╚╝  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
+     // Spawn a new connection to run the queries on.
+     Helpers.connection.spawnOrLeaseConnection(inputs.datastore, inputs.meta, function spawnConnectionCb(err, connection) {
       if (err) {
         return exits.badConnection(err);
       }
@@ -172,6 +175,7 @@ module.exports = require('machine').build({
           }); // </ releaseConnection >
         }); // </ runAutoIncrementQuery >
       }); // </ runDescribeQuery >
-    }); // </ spawnConnection >
+    }); // </ spawnConnection >*/
+    return exits.success();
   }
 });

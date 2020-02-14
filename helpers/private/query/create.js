@@ -11,7 +11,7 @@ var _ = require('@sailshq/lodash');
 var compileStatement = require('./compile-statement');
 var runQuery = require('./run-query');
 
-module.exports = function createEach(options, cb) {
+module.exports = function createEach(options, manager, cb) {
   //  ╦  ╦╔═╗╦  ╦╔╦╗╔═╗╔╦╗╔═╗  ┌─┐┌─┐┌┬┐┬┌─┐┌┐┌┌─┐
   //  ╚╗╔╝╠═╣║  ║ ║║╠═╣ ║ ║╣   │ │├─┘ │ ││ ││││└─┐
   //   ╚╝ ╩ ╩╩═╝╩═╩╝╩ ╩ ╩ ╚═╝  └─┘┴   ┴ ┴└─┘┘└┘└─┘
@@ -69,7 +69,7 @@ module.exports = function createEach(options, cb) {
   }
 
 
-  runQuery(insertOptions, function runQueryCb(err, report) {
+  runQuery(insertOptions, manager, function runQueryCb(err, report) {
     if (err) {
       return cb(err);
     }
@@ -118,7 +118,7 @@ module.exports = function createEach(options, cb) {
       meta: compiledQuery.meta,
       disconnectOnError: false,
       queryType: 'select'
-    }, function runQueryCb(err, report) {
+    }, manager, function runQueryCb(err, report) {
       if (err) {
         return cb(err);
       }

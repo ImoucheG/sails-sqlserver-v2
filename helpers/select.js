@@ -130,34 +130,34 @@ module.exports = require('machine').build({
       var queryType = 'select';
 
       Helpers.query.runQuery({
-        connection: connection,
-        nativeQuery: compiledQuery.nativeQuery,
-        valuesToEscape: compiledQuery.valuesToEscape,
-        meta: compiledQuery.meta,
-        queryType: queryType,
-        disconnectOnError: leased ? false : true
-      },
+          connection: connection,
+          nativeQuery: compiledQuery.nativeQuery,
+          valuesToEscape: compiledQuery.valuesToEscape,
+          meta: compiledQuery.meta,
+          queryType: queryType,
+          disconnectOnError: leased ? false : true
+        }, inputs.datastore.manager,
 
-      function runQueryCb(err, report) {
-        // The runQuery helper will automatically release the connection on error
-        // if needed.
-        if (err) {
-          return exits.error(err);
-        }
+        function runQueryCb(err, report) {
+          // The runQuery helper will automatically release the connection on error
+          // if needed.
+          if (err) {
+            return exits.error(err);
+          }
 
-        // Always release the connection unless a leased connection from outside
-        // the adapter was used.
-        Helpers.connection.releaseConnection(connection, leased, function releaseConnectionCb() {
-          var selectRecords = report.result;
-          var orm = {
-            collections: inputs.models
-          };
+          // Always release the connection unless a leased connection from outside
+          // the adapter was used.
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseConnectionCb() {
+            var selectRecords = report.result;
+            var orm = {
+              collections: inputs.models
+            };
 
-          // Process each record to normalize output
-          try {
-            Helpers.query.processEachRecord({
-              records: selectRecords,
-              identity: model.identity,
+            // Process each record to normalize output
+            try {
+              Helpers.query.processEachRecord({
+                records: selectRecords,
+                identity: model.identity,
               orm: orm
             });
           } catch (e) {

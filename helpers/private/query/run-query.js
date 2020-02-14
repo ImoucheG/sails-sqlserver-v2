@@ -46,7 +46,7 @@ module.exports = function runQuery(options, manager, cb) {
         return cb(err);
       }
 
-      releaseConnection(options.connection, options.leased, function releaseConnectionCb(err) {
+      releaseConnection(options.connection, manager, options.leased, function releaseConnectionCb(err) {
         return cb(err);
       });
     },
@@ -64,7 +64,7 @@ module.exports = function runQuery(options, manager, cb) {
           return cb(e);
         }
 
-        releaseConnection(options.connection, function releaseConnectionCb() {
+        releaseConnection(options.connection, manager, function releaseConnectionCb() {
           return cb(e);
         });
         return;
@@ -88,7 +88,7 @@ module.exports = function runQuery(options, manager, cb) {
         return cb(parsedError);
       }
 
-      releaseConnection(options.connection, false, function releaseConnectionCb() {
+      releaseConnection(options.connection, manager, false, function releaseConnectionCb() {
         if (catchAllError) {
           return cb(report.error);
         }

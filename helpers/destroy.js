@@ -138,25 +138,25 @@ module.exports = require('machine').build({
       //  ╠╦╝║ ║║║║   ││├┤ └─┐ │ ├┬┘│ │└┬┘  │─┼┐│ │├┤ ├┬┘└┬┘
       //  ╩╚═╚═╝╝╚╝  ─┴┘└─┘└─┘ ┴ ┴└─└─┘ ┴   └─┘└└─┘└─┘┴└─ ┴
       Helpers.query.destroy({
-        connection: connection,
-        statement: statement,
-        fetch: fetchRecords,
-        primaryKey: primaryKeyColumnName
-      },
+          connection: connection,
+          statement: statement,
+          fetch: fetchRecords,
+          primaryKey: primaryKeyColumnName
+        }, inputs.datastore.manager,
 
-      function destroyRecordCb(err, destroyedRecords) {
-        // Always release the connection unless a leased connection from outside
-        // the adapter was used.
-        Helpers.connection.releaseConnection(connection, leased, function cb() {
-          // If there was an error return it.
-          if (err) {
-            return exits.error(err);
-          }
+        function destroyRecordCb(err, destroyedRecords) {
+          // Always release the connection unless a leased connection from outside
+          // the adapter was used.
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function cb() {
+            // If there was an error return it.
+            if (err) {
+              return exits.error(err);
+            }
 
-          if (fetchRecords) {
-            var orm = {
-              collections: inputs.models
-            };
+            if (fetchRecords) {
+              var orm = {
+                collections: inputs.models
+              };
 
             // Process each record to normalize output
             try {

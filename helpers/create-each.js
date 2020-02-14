@@ -178,25 +178,25 @@ module.exports = require('machine').build({
       //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  └─┘┴ ┴└─┘┴ ┴
       // Run the Create Each util
       Helpers.query.createEach({
-        connection: connection,
-        statement: statement,
-        fetch: fetchRecords,
-        primaryKey: primaryKeyColumnName
-      },
+          connection: connection,
+          statement: statement,
+          fetch: fetchRecords,
+          primaryKey: primaryKeyColumnName
+        }, inputs.datastore.manager,
 
-      function createEachCb(err, insertedRecords) {
-        // Release the connection if needed.
-        Helpers.connection.releaseConnection(connection, leased, function releaseCb() {
-          // If there was an error return it.
-          if (err) {
-            if (err.footprint && err.footprint.identity === 'notUnique') {
-              return exits.notUnique(err);
+        function createEachCb(err, insertedRecords) {
+          // Release the connection if needed.
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseCb() {
+            // If there was an error return it.
+            if (err) {
+              if (err.footprint && err.footprint.identity === 'notUnique') {
+                return exits.notUnique(err);
+              }
+
+              return exits.error(err);
             }
 
-            return exits.error(err);
-          }
-
-          if (fetchRecords) {
+            if (fetchRecords) {
             // Process each record to normalize output
             try {
               Helpers.query.processEachRecord({

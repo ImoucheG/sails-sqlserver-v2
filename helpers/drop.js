@@ -55,20 +55,22 @@ module.exports = require('machine').build({
 
 
   fn: function drop(inputs, exits) {
+    // TODO: IMPLEMENTS
     // Dependencies
-    var _ = require('@sailshq/lodash');
-    var Helpers = require('./private');
+    /**
+     var _ = require('@sailshq/lodash');
+     var Helpers = require('./private');
 
 
-    // Set a flag if a leased connection from outside the adapter was used or not.
-    var leased = _.has(inputs.meta, 'leasedConnection');
+     // Set a flag if a leased connection from outside the adapter was used or not.
+     var leased = _.has(inputs.meta, 'leasedConnection');
 
 
-    //  ╔═╗╔═╗╔═╗╦ ╦╔╗╔  ┌─┐┌─┐┌┐┌┌┐┌┌─┐┌─┐┌┬┐┬┌─┐┌┐┌
-    //  ╚═╗╠═╝╠═╣║║║║║║  │  │ │││││││├┤ │   │ ││ ││││
-    //  ╚═╝╩  ╩ ╩╚╩╝╝╚╝  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
-    // Spawn a new connection to run the queries on.
-    Helpers.connection.spawnOrLeaseConnection(inputs.datastore, inputs.meta, function spawnConnectionCb(err, connection) {
+     //  ╔═╗╔═╗╔═╗╦ ╦╔╗╔  ┌─┐┌─┐┌┐┌┌┐┌┌─┐┌─┐┌┬┐┬┌─┐┌┐┌
+     //  ╚═╗╠═╝╠═╣║║║║║║  │  │ │││││││├┤ │   │ ││ ││││
+     //  ╚═╝╩  ╩ ╩╚╩╝╝╚╝  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
+     // Spawn a new connection to run the queries on.
+     Helpers.connection.spawnOrLeaseConnection(inputs.datastore, inputs.meta, function spawnConnectionCb(err, connection) {
       if (err) {
         return exits.badConnection(err);
       }
@@ -101,10 +103,11 @@ module.exports = require('machine').build({
           if (err) {
             return exits.error(err);
           }
-
-          return exits.success();
-        }); // </ releaseConnection >
-      }); // </ runNativeQuery >
-    }); // </ spawnConnection >
+     */
+    return exits.success();
+    /**  }); // </ releaseConnection >
+     }); // </ runNativeQuery >
+     }); // </ spawnConnection >
+     */
   }
 });

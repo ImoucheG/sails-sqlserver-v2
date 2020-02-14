@@ -167,26 +167,26 @@ module.exports = require('machine').build({
       //  ╠╦╝║ ║║║║  │ │├─┘ ││├─┤ │ ├┤   │─┼┐│ │├┤ ├┬┘└┬┘
       //  ╩╚═╚═╝╝╚╝  └─┘┴  ─┴┘┴ ┴ ┴ └─┘  └─┘└└─┘└─┘┴└─ ┴
       Helpers.query.update({
-        connection: connection,
-        statement: statement,
-        fetch: fetchRecords,
-        primaryKey: primaryKeyColumnName
-      },
+          connection: connection,
+          statement: statement,
+          fetch: fetchRecords,
+          primaryKey: primaryKeyColumnName
+        }, inputs.datastore.manager,
 
-      function updateRecordCb(err, updatedRecords) {
-        // Always release the connection unless a leased connection from outside
-        // the adapter was used.
-        Helpers.connection.releaseConnection(connection, leased, function cb() {
-          // If there was an error return it.
-          if (err) {
-            if (err.footprint && err.footprint.identity === 'notUnique') {
-              return exits.notUnique(err);
+        function updateRecordCb(err, updatedRecords) {
+          // Always release the connection unless a leased connection from outside
+          // the adapter was used.
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function cb() {
+            // If there was an error return it.
+            if (err) {
+              if (err.footprint && err.footprint.identity === 'notUnique') {
+                return exits.notUnique(err);
+              }
+
+              return exits.error(err);
             }
 
-            return exits.error(err);
-          }
-
-          if (fetchRecords) {
+            if (fetchRecords) {
             // Process each record to normalize output
             try {
               Helpers.query.processEachRecord({

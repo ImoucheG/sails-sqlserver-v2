@@ -125,18 +125,11 @@ module.exports = require('machine').build({
     // If the connection details were not supplied as a URL, make them into one.
     // This is required for the underlying driver in use.
     if (!_.has(inputs.config, 'url')) {
-      var url = 'mysql://';
-      var port = inputs.config.port || '5432';
-
-      // If authentication is used, add it to the connection string
-      if (inputs.config.user && inputs.config.password) {
-        url += inputs.config.user + ':' + inputs.config.password + '@';
-      }
-
-      url += inputs.config.host + ':' + port + '/' + inputs.config.database;
-      inputs.config.url = url;
+      inputs.config.port = inputs.config.port || '1433';
     }
-
+    delete inputs.config.port;
+    delete inputs.config.adapter;
+    delete inputs.config.identity;
 
     //  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐┬─┐
     //  ║  ╠╦╝║╣ ╠═╣ ║ ║╣   │││├─┤│││├─┤│ ┬├┤ ├┬┘
@@ -144,7 +137,7 @@ module.exports = require('machine').build({
     // Create a manager to handle the datastore connection config
     var report;
     try {
-      report = Helpers.connection.createManager(inputs.config.url, inputs.config);
+      report = Helpers.connection.createManager(inputs.config, inputs.config);
     } catch (e) {
       if (!e.code || e.code === 'error') {
         return exits.error(new Error('There was an error creating a new manager for the connection with a url of: ' + inputs.config.url + '\n\n' + e.stack));

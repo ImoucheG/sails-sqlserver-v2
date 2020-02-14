@@ -16,9 +16,10 @@
 
 var SQLSERVER = require('machinepack-sqlserver');
 
-module.exports = function compileStatement(statement, meta) {
+module.exports = function compileStatement(statement, model, meta) {
   var report = SQLSERVER.compileStatement({
     statement: statement,
+    model: model,
     meta: meta
   }).execSync();
 

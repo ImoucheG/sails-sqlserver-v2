@@ -127,26 +127,26 @@ module.exports = require('machine').build({
       var queryType = 'count';
 
       Helpers.query.runQuery({
-        connection: connection,
-        nativeQuery: compiledQuery.nativeQuery,
-        valuesToEscape: compiledQuery.valuesToEscape,
-        meta: compiledQuery.meta,
-        queryType: queryType,
-        disconnectOnError: leased ? false : true
-      },
+          connection: connection,
+          nativeQuery: compiledQuery.nativeQuery,
+          valuesToEscape: compiledQuery.valuesToEscape,
+          meta: compiledQuery.meta,
+          queryType: queryType,
+          disconnectOnError: leased ? false : true
+        }, inputs.datastore.manager,
 
-      function runQueryCb(err, report) {
-        // The runQuery helper will automatically release the connection on error
-        // if needed.
-        if (err) {
-          return exits.error(err);
-        }
+        function runQueryCb(err, report) {
+          // The runQuery helper will automatically release the connection on error
+          // if needed.
+          if (err) {
+            return exits.error(err);
+          }
 
-        // Always release the connection unless a leased connection from outside
-        // the adapter was used.
-        Helpers.connection.releaseConnection(connection, leased, function releaseConnectionCb() {
-          return exits.success(report.result);
-        }); // </ releaseConnection >
+          // Always release the connection unless a leased connection from outside
+          // the adapter was used.
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseConnectionCb() {
+            return exits.success(report.result);
+          }); // </ releaseConnection >
       }); // </ runQuery >
     }); // </ spawnConnection >
   }
