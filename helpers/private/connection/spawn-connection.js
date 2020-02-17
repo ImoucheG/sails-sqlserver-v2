@@ -14,7 +14,7 @@
 //
 // Instantiate a new connection from the connection manager.
 
-var SQLSERVER = require('machinepack-sqlserver');
+var SQLSERVER = require('machinepack-sqlserver-adapter');
 
 module.exports = function spawnConnection(datastore, cb) {
   // Validate datastore

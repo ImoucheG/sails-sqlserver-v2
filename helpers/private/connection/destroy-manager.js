@@ -14,10 +14,10 @@
 //
 // Destroys a connection manager.
 
-var MySQL = require('machinepack-sqlserver');
+var MSSQL = require('machinepack-sqlserver-adapter');
 
 module.exports = function destroyManager(manager, cb) {
-  MySQL.destroyManager({
+  MSSQL.destroyManager({
     manager: manager
   })
   .exec(function destroyManagerCb(err) {

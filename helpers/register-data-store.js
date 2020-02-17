@@ -77,7 +77,7 @@ module.exports = require('machine').build({
   fn: function registerDataStore(inputs, exits) {
     // Dependencies
     var _ = require('@sailshq/lodash');
-    var SQLSERVER = require('machinepack-sqlserver');
+    var SQLSERVER = require('machinepack-sqlserver-adapter');
     var Helpers = require('./private');
 
     // Validate that the datastore isn't already initialized

@@ -8,7 +8,7 @@
 // Send a Native Query to the datastore and gracefully handle errors.
 
 var _ = require('@sailshq/lodash');
-var SQLSERVER = require('machinepack-sqlserver');
+var SQLSERVER = require('machinepack-sqlserver-adapter');
 var releaseConnection = require('../connection/release-connection');
 
 module.exports = function runQuery(options, manager, cb) {

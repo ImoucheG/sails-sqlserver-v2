@@ -14,7 +14,7 @@
 //
 // Create a new connection manager to use.
 
-var SQLSERVER = require('machinepack-sqlserver');
+var SQLSERVER = require('machinepack-sqlserver-adapter');
 
 module.exports = function createManager(connectionConfiguration, config) {
   var report = SQLSERVER.createManager({

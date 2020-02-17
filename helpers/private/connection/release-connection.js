@@ -14,7 +14,7 @@
 //
 // Release an open database connection.
 
-var SQLSERVER = require('machinepack-sqlserver');
+var SQLSERVER = require('machinepack-sqlserver-adapter');
 
 module.exports = function releaseConnection(connection, manager, leased, cb) {
   // If this connection was leased outside of the Adapter, don't release it.

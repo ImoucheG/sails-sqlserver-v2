@@ -15,7 +15,7 @@
 // Run a native SQL query on an open connection and return the raw results.
 
 var _ = require('@sailshq/lodash');
-var SQLSERVER = require('machinepack-sqlserver');
+var SQLSERVER = require('machinepack-sqlserver-adapter');
 
 module.exports = function runNativeQuery(connection, manager, query, valuesToEscape, meta, cb) {
   SQLSERVER.sendNativeQuery({
