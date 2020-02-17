@@ -22,7 +22,6 @@
   ],
   "_resolved": "git+https://github.com/ImoucheG/sails-sqlserver-v2.git#e279d50b43c4e2b45e29eb11d8b37262c4f23582",
   "_spec": "sails-sqlserver-v2@git+https://github.com/ImoucheG/sails-sqlserver-v2.git",
-  "_where": "D:\\developments\\TestSQLSERVER",
   "author": {
     "name": "ImoucheG"
   },
@@ -34,7 +33,7 @@
     "@sailshq/lodash": "^3.10.2",
     "async": "2.0.1",
     "machine": "^15.0.0-21",
-    "machinepack-sqlserver": "git+https://github.com/ImoucheG/machinepack-sqlserver.git",
+    "machinepack-sqlserver": "machinepack-sqlserver-adapter",
     "waterline-utils": "^1.3.10"
   },
   "deprecated": false,
