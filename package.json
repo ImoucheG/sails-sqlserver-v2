@@ -1,6 +1,6 @@
 {
   "_from": "git+https://github.com/ImoucheG/sails-sqlserver-v2.git",
-  "_id": "sails-sqlserver-v2@1.0.3",
+  "_id": "sails-sqlserver-v2@1.0.4",
   "_inBundle": false,
   "_integrity": "",
   "_location": "/sails-sqlserver-v2",
@@ -66,7 +66,7 @@
     "pretest": "nodever=`node -e \"console.log('\\`node -v\\`'[1]);\"` && if [ $nodever != \"0\" ]; then npm run lint; fi",
     "test": "node ./node_modules/mocha/bin/mocha test/adapter/unit --timeout 10000 --recursive && node test/adapter/integration/runner"
   },
-  "version": "1.0.3",
+  "version": "1.0.4",
   "waterlineAdapter": {
     "waterlineVersion": "^0.13.0",
     "interfaces": [
