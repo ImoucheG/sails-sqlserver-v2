@@ -106,6 +106,12 @@ module.exports = function insertRecord(options, manager, cb) {
     var compiledUpdateQuery;
     try {
       compiledUpdateQuery = compileStatement(options.statement);
+      if (compiledUpdateQuery.nativeQuery.includes('top (@p0)') &&
+        typeof compiledUpdateQuery.valuesToEscape[compiledUpdateQuery.valuesToEscape.length - 1] === 'number') {
+        const top = compiledUpdateQuery.valuesToEscape[compiledUpdateQuery.valuesToEscape.length - 1];
+        compiledUpdateQuery.valuesToEscape.unshift(top);
+        compiledUpdateQuery.valuesToEscape.pop();
+      }
     } catch (e) {
       // If the statement could not be compiled, return an error.
       return cb(e);
@@ -134,73 +140,72 @@ module.exports = function insertRecord(options, manager, cb) {
           return cb(undefined, report.result);
         }
 
-      //  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗  ┌┬┐┬ ┬┌─┐  ┌─┐┌─┐┌┬┐┌─┐┬ ┬
-      //  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║   │ ├─┤├┤   ├┤ ├┤  │ │  ├─┤
-      //  ╩  ╚═╝╩╚═╚  ╚═╝╩╚═╩ ╩   ┴ ┴ ┴└─┘  └  └─┘ ┴ └─┘┴ ┴
-      // Otherwise, fetch the newly inserted record
-      var fetchStatement = {
-        select: '*',
-        from: options.statement.using,
-        where: {}
-      };
+        //  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗  ┌┬┐┬ ┬┌─┐  ┌─┐┌─┐┌┬┐┌─┐┬ ┬
+        //  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║   │ ├─┤├┤   ├┤ ├┤  │ │  ├─┤
+        //  ╩  ╚═╝╩╚═╚  ╚═╝╩╚═╩ ╩   ┴ ┴ ┴└─┘  └  └─┘ ┴ └─┘┴ ┴
+        // Otherwise, fetch the newly inserted record
+        var fetchStatement = {
+          select: '*',
+          from: options.statement.using,
+          where: {}
+        };
 
-      // Build the fetch statement where clause
-      var selectPks = _.map(selectReport.result, function mapPks(record) {
-        return record[options.primaryKey];
-      });
+        // Build the fetch statement where clause
+        var selectPks = _.map(selectReport.result, function mapPks(record) {
+          return record[options.primaryKey];
+        });
 
-      fetchStatement.where[options.primaryKey] = {
-        in: selectPks
-      };
+        fetchStatement.where[options.primaryKey] = {
+          in: selectPks
+        };
 
 
-      // Handle case where pk value was changed:
-      if (!_.isUndefined(options.statement.update[options.primaryKey])) {
-        // There should only ever be either zero or one record that were found before.
-        if (selectPks.length === 0) { /* do nothing */ }
-        else if (selectPks.length === 1) {
-          var oldPkValue = selectPks[0];
-          _.remove(fetchStatement.where[options.primaryKey].in, oldPkValue);
-          var newPkValue = options.statement.update[options.primaryKey];
-          fetchStatement.where[options.primaryKey].in.push(newPkValue);
+        // Handle case where pk value was changed:
+        if (!_.isUndefined(options.statement.update[options.primaryKey])) {
+          // There should only ever be either zero or one record that were found before.
+          if (selectPks.length === 0) { /* do nothing */
+          } else if (selectPks.length === 1) {
+            var oldPkValue = selectPks[0];
+            _.remove(fetchStatement.where[options.primaryKey].in, oldPkValue);
+            var newPkValue = options.statement.update[options.primaryKey];
+            fetchStatement.where[options.primaryKey].in.push(newPkValue);
+          } else {
+            return cb(new Error('Consistency violation: Updated multiple records to have the same primary key value. (PK values should be unique!)'));
+          }
         }
-        else {
-          return cb(new Error('Consistency violation: Updated multiple records to have the same primary key value. (PK values should be unique!)'));
-        }
-      }
 
 
-      //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-      //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
-      //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
-      // Compile the statement into a native query.
-      var compiledFetchQuery;
-      try {
-        compiledFetchQuery = compileStatement(fetchStatement);
-      } catch (err) {
-        // If the statement could not be compiled, return an error.
-        return cb(err);
-      }
-
-
-      //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-      //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
-      //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
-      // Run the fetch query.
-      runQuery({
-        connection: options.connection,
-        nativeQuery: compiledFetchQuery.nativeQuery,
-        valuesToEscape: compiledFetchQuery.valuesToEscape,
-        meta: compiledFetchQuery.meta,
-        disconnectOnError: false,
-        queryType: 'select'
-      }, manager, function runQueryCb(err, report) {
-        if (err) {
+        //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+        //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
+        //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
+        // Compile the statement into a native query.
+        var compiledFetchQuery;
+        try {
+          compiledFetchQuery = compileStatement(fetchStatement);
+        } catch (err) {
+          // If the statement could not be compiled, return an error.
           return cb(err);
         }
 
-        return cb(undefined, report.result);
+
+        //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+        //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
+        //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
+        // Run the fetch query.
+        runQuery({
+          connection: options.connection,
+          nativeQuery: compiledFetchQuery.nativeQuery,
+          valuesToEscape: compiledFetchQuery.valuesToEscape,
+          meta: compiledFetchQuery.meta,
+          disconnectOnError: false,
+          queryType: 'select'
+        }, manager, function runQueryCb(err, report) {
+          if (err) {
+            return cb(err);
+          }
+
+          return cb(undefined, report.result);
+        });
       });
-    });
   });
 };

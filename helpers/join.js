@@ -225,7 +225,7 @@ module.exports = require('machine').build({
         // statements that need to be processed. If not, close the connection and
         // return the combined results.
         if (!statements.childStatements || !statements.childStatements.length) {
-          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseConnectionCb(err) {
+          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseConnectionCb() {
             if (err) {
               return exits.error(err);
             }

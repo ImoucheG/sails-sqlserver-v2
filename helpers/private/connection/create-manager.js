@@ -16,11 +16,14 @@
 
 var SQLSERVER = require('machinepack-sqlserver-adapter');
 
-module.exports = function createManager(connectionConfiguration, config) {
-  var report = SQLSERVER.createManager({
+module.exports = function createManager(connectionConfiguration, config, cb) {
+  SQLSERVER.createManager({
     connectionConfig: connectionConfiguration,
     meta: config
-  }).execSync();
-
-  return report;
+  }).exec(function createManagerCb(err, report) {
+    if (err) {
+      return cb(new Error('There was an error creating the connection manager.\n\n' + err.stack));
+    }
+    return cb(report);
+  });
 };

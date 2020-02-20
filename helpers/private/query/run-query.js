@@ -64,7 +64,7 @@ module.exports = function runQuery(options, manager, cb) {
           return cb(e);
         }
 
-        releaseConnection(options.connection, manager, function releaseConnectionCb() {
+        releaseConnection(options.connection, manager, options.leased, function releaseConnectionCb() {
           return cb(e);
         });
         return;

@@ -137,7 +137,38 @@ module.exports = require('machine').build({
     // Create a manager to handle the datastore connection config
     var report;
     try {
-      report = Helpers.connection.createManager(inputs.config, inputs.config);
+      Helpers.connection.createManager(inputs.config, inputs.config, (report) => {
+
+        // Build up a database schema for this connection that can be used
+        // throughout the adapter
+        var dbSchema = {};
+
+        _.each(inputs.models, function buildSchema(val) {
+          var identity = val.identity;
+          var tableName = val.tableName;
+          var definition = val.definition;
+
+          dbSchema[tableName] = {
+            identity: identity,
+            tableName: tableName,
+            definition: definition,
+            attributes: definition,
+            primaryKey: val.primaryKey
+          };
+        });
+
+        // Store the connection
+        inputs.datastores[inputs.identity] = {
+          manager: report.manager,
+          config: inputs.config,
+          driver: SQLSERVER
+        };
+
+        // Store the db schema for the connection
+        inputs.modelDefinitions[inputs.identity] = dbSchema;
+
+        return exits.success();
+      });
     } catch (e) {
       if (!e.code || e.code === 'error') {
         return exits.error(new Error('There was an error creating a new manager for the connection with a url of: ' + inputs.config.url + '\n\n' + e.stack));
@@ -154,35 +185,5 @@ module.exports = require('machine').build({
       return exits.error(new Error('There was an error creating a new manager for the connection with a url of: ' + inputs.config.url + '\n\n' + e.stack));
     }
 
-
-    // Build up a database schema for this connection that can be used
-    // throughout the adapter
-    var dbSchema = {};
-
-    _.each(inputs.models, function buildSchema(val) {
-      var identity = val.identity;
-      var tableName = val.tableName;
-      var definition = val.definition;
-
-      dbSchema[tableName] = {
-        identity: identity,
-        tableName: tableName,
-        definition: definition,
-        attributes: definition,
-        primaryKey: val.primaryKey
-      };
-    });
-
-    // Store the connection
-    inputs.datastores[inputs.identity] = {
-      manager: report.manager,
-      config: inputs.config,
-      driver: SQLSERVER
-    };
-
-    // Store the db schema for the connection
-    inputs.modelDefinitions[inputs.identity] = dbSchema;
-
-    return exits.success();
   }
 });

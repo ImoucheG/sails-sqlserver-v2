@@ -17,7 +17,7 @@ var async = require('async');
 var compileStatement = require('./compile-statement');
 var runQuery = require('./run-query');
 
-module.exports = function createEach(options, cb) {
+module.exports = function createEach(options, manager, cb) {
   //  ╦  ╦╔═╗╦  ╦╔╦╗╔═╗╔╦╗╔═╗  ┌─┐┌─┐┌┬┐┬┌─┐┌┐┌┌─┐
   //  ╚╗╔╝╠═╣║  ║ ║║╠═╣ ║ ║╣   │ │├─┘ │ ││ ││││└─┐
   //   ╚╝ ╩ ╩╩═╝╩═╩╝╩ ╩ ╩ ╚═╝  └─┘┴   ┴ ┴└─┘┘└┘└─┘
@@ -76,21 +76,21 @@ module.exports = function createEach(options, cb) {
     //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
     // Run the initial query (bulk insert)
     runQuery({
-      connection: options.connection,
-      nativeQuery: compiledQuery.nativeQuery,
-      valuesToEscape: compiledQuery.valuesToEscape,
-      meta: compiledQuery.meta,
-      disconnectOnError: false,
-      queryType: 'insert'
-    },
+        connection: options.connection,
+        nativeQuery: compiledQuery.nativeQuery,
+        valuesToEscape: compiledQuery.valuesToEscape,
+        meta: compiledQuery.meta,
+        disconnectOnError: false,
+        queryType: 'insert'
+      }, manager,
 
-    function runQueryCb(err, report) {
-      if (err) {
-        return cb(err);
-      }
+      function runQueryCb(err, report) {
+        if (err) {
+          return cb(err);
+        }
 
-      return cb(undefined, report.result);
-    });
+        return cb(undefined, report.result);
+      });
 
     // Return early
     return;
@@ -148,16 +148,16 @@ module.exports = function createEach(options, cb) {
     //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
     //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
     // Run the initial query (bulk insert)
-    runQuery(insertOptions, function runQueryCb(err, report) {
-      if (err) {
-        return nextRecord(err);
-      }
+      runQuery(insertOptions, manager, function runQueryCb(err, report) {
+        if (err) {
+          return nextRecord(err);
+        }
 
-      // Add the insert id to the array
-      insertIds.push(report.result.inserted);
+        // Add the insert id to the array
+        insertIds.push(report.result.inserted);
 
-      return nextRecord(undefined, report.result);
-    });
+        return nextRecord(undefined, report.result);
+      });
   },
 
   function fetchCreateCb(err) {
@@ -208,7 +208,7 @@ module.exports = function createEach(options, cb) {
       meta: compiledQuery.meta,
       disconnectOnError: false,
       queryType: 'select'
-    }, function runQueryCb(err, report) {
+    }, manager, function runQueryCb(err, report) {
       if (err) {
         return cb(err);
       }
