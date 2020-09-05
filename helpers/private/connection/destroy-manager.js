@@ -14,17 +14,13 @@
 //
 // Destroys a connection manager.
 
-var MSSQL = require('machinepack-sqlserver-adapter');
+const MSSQL = require('machinepack-sqlserver-adapter');
 
-module.exports = function destroyManager(manager, cb) {
-  MSSQL.destroyManager({
+module.exports = async function destroyManager(manager) {
+  await MSSQL.destroyManager({
     manager: manager
-  })
-  .exec(function destroyManagerCb(err) {
-    if (err) {
-      return cb(new Error('There was an error destroying the connection manager.\n\n' + err.stack));
-    }
-
-    return cb();
+  }).catch(err => {
+    return Promise.reject(new Error('There was an error destroying the connection manager.\n\n' + err.stack));
   });
+  return Promise.resolve();
 };

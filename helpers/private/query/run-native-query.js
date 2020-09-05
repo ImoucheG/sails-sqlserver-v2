@@ -14,33 +14,31 @@
 //
 // Run a native SQL query on an open connection and return the raw results.
 
-var _ = require('@sailshq/lodash');
-var SQLSERVER = require('machinepack-sqlserver-adapter');
+const _ = require('@sailshq/lodash');
+const SQLSERVER = require('machinepack-sqlserver-adapter');
 
-module.exports = function runNativeQuery(connection, manager, query, valuesToEscape, meta, cb) {
-  SQLSERVER.sendNativeQuery({
+module.exports = async function runNativeQuery(connection, manager, query, valuesToEscape, statement, meta) {
+  const report = await SQLSERVER.sendNativeQuery({
     connection: connection,
     manager: manager,
+    statement: statement,
     nativeQuery: query,
     valuesToEscape: valuesToEscape,
     meta: meta
-  })
-  .switch({
-    error: function error(err) {
-      return cb(err);
-    },
+  }).catch(async err => {
+    if (err.exit === 'error') {
+      return Promise.reject(err);
+    }
 
     // If the query failed, try and parse it into a normalized format.
-    queryFailed: function queryFailed(report) {
+
+    if (err.exit === 'queryFailed') {
       // Parse the native query error into a normalized format
-      var parsedError;
-      try {
-        parsedError = SQLSERVER.parseNativeQueryError({
-          nativeQueryError: report.error
-        }).execSync();
-      } catch (e) {
-        return cb(e);
-      }
+      let parsedError = await SQLSERVER.parseNativeQueryError({
+        nativeQueryError: report.error
+      }).catch(e => {
+        return Promise.reject(e);
+      });
 
       // If the catch all error was used, return an error instance instead of
       // the footprint.
@@ -51,7 +49,7 @@ module.exports = function runNativeQuery(connection, manager, query, valuesToEsc
       }
 
       if (catchAllError) {
-        return cb(report.error);
+        return Promise.reject(report.error);
       }
 
       // Attach parsed error as footprint on the native query error
@@ -59,10 +57,8 @@ module.exports = function runNativeQuery(connection, manager, query, valuesToEsc
         report.error.footprint = parsedError;
       }
 
-      return cb(report.error);
-    },
-    success: function success(report) {
-      return cb(null, report.result.rows);
+      return Promise.reject(report.error);
     }
   });
+  return Promise.resolve(report.result.rows);
 };

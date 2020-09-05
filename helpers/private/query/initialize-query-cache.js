@@ -18,8 +18,8 @@
 // the operations are completed. The records can then be nested together and
 // returned as a single array of nested values.
 
-var _ = require('@sailshq/lodash');
-var utils = require('waterline-utils');
+const _ = require('@sailshq/lodash');
+const utils = require('waterline-utils');
 
 module.exports = function initializeQueryCache(options) {
   //  ╦  ╦╔═╗╦  ╦╔╦╗╔═╗╔╦╗╔═╗  ┌─┐┌─┐┌┬┐┬┌─┐┌┐┌┌─┐

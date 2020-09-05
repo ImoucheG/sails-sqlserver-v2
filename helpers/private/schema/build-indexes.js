@@ -7,30 +7,30 @@
 //
 // Build database indexes as needed.
 
-var _ = require('@sailshq/lodash');
-var async = require('async');
-var escapeTableName = require('./escape-table-name');
-var runNativeQuery = require('../query/run-native-query');
+const _ = require('@sailshq/lodash');
+const async = require('async');
+const escapeTableName = require('./escape-table-name');
+const runNativeQuery = require('../query/run-native-query');
 
 
-module.exports = function buildIndexes(options, cb) {
+module.exports = async function buildIndexes(options) {
   //  ╦  ╦╔═╗╦  ╦╔╦╗╔═╗╔╦╗╔═╗  ┌─┐┌─┐┌┬┐┬┌─┐┌┐┌┌─┐
   //  ╚╗╔╝╠═╣║  ║ ║║╠═╣ ║ ║╣   │ │├─┘ │ ││ ││││└─┐
   //   ╚╝ ╩ ╩╩═╝╩═╩╝╩ ╩ ╩ ╚═╝  └─┘┴   ┴ ┴└─┘┘└┘└─┘
   if (_.isUndefined(options) || !_.isPlainObject(options)) {
-    throw new Error('Invalid options argument. Options must contain: connection, definition, and tableName.');
+    return Promise.reject(new Error('Invalid options argument. Options must contain: connection, definition, and tableName.'));
   }
 
   if (!_.has(options, 'connection') || !_.isObject(options.connection)) {
-    throw new Error('Invalid option used in options argument. Missing or invalid connection.');
+    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid connection.'));
   }
 
   if (!_.has(options, 'definition') || !_.isPlainObject(options.definition)) {
-    throw new Error('Invalid option used in options argument. Missing or invalid definition.');
+    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid definition.'));
   }
 
   if (!_.has(options, 'tableName') || !_.isString(options.tableName)) {
-    throw new Error('Invalid option used in options argument. Missing or invalid tableName.');
+    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid tableName.'));
   }
 
 
@@ -41,7 +41,6 @@ module.exports = function buildIndexes(options, cb) {
     if (_.has(val, 'index')) {
       meta.push(key);
     }
-
     return meta;
   }, []);
 
@@ -50,7 +49,7 @@ module.exports = function buildIndexes(options, cb) {
   //  ╠╩╗║ ║║║   ║║  ││││ ││├┤ ┌┴┬┘├┤ └─┐
   //  ╚═╝╚═╝╩╩═╝═╩╝  ┴┘└┘─┴┘└─┘┴ └─└─┘└─┘
   // Build indexes in series
-  async.eachSeries(indexes, function build(name, nextIndex) {
+  async.eachSeries(indexes, async function build(name, nextIndex) {
     // Strip slashes from table name, used to namespace index
     var cleanTable = options.tableName.replace(/['"]/g, '');
 
@@ -58,6 +57,6 @@ module.exports = function buildIndexes(options, cb) {
     var query = 'CREATE INDEX ' + escapeTableName(cleanTable + '_' + name) + ' on ' + options.tableName + ' (' + escapeTableName(name) + ');';
 
     // Run the native query
-    runNativeQuery(options.connection, query, [], undefined, nextIndex);
-  }, cb);
+    await runNativeQuery(options.connection, query, [], undefined, nextIndex);
+  }, Promise.resolve);
 };

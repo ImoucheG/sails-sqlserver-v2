@@ -7,16 +7,9 @@
 //
 
 module.exports = require('machine').build({
-
-
   friendlyName: 'AVG',
-
-
   description: 'Return the Average of the records matched by the query.',
-
-
   inputs: {
-
     datastore: {
       description: 'The datastore to use for connections.',
       extendedDescription: 'Datastores represent the config and manager required to obtain an active database connection.',
@@ -24,13 +17,11 @@ module.exports = require('machine').build({
       readOnly: true,
       example: '==='
     },
-
     models: {
       description: 'An object containing all of the model definitions that have been registered.',
       required: true,
       example: '==='
     },
-
     query: {
       description: 'A valid stage three Waterline query.',
       required: true,
@@ -38,48 +29,40 @@ module.exports = require('machine').build({
     }
 
   },
-
-
   exits: {
-
     success: {
       description: 'The results of the avg query.',
       outputType: 'ref'
     },
-
     invalidDatastore: {
       description: 'The datastore used is invalid. It is missing key pieces.'
     },
-
     badConnection: {
       friendlyName: 'Bad connection',
       description: 'A connection either could not be obtained or there was an error using the connection.'
     }
-
   },
-
-
-  fn: function avg(inputs, exits) {
+  fn: async function avg(inputs, exits) {
     // Dependencies
-    var _ = require('@sailshq/lodash');
-    var Converter = require('waterline-utils').query.converter;
-    var Helpers = require('./private');
+    const _ = require('@sailshq/lodash');
+    const Converter = require('waterline-utils').query.converter;
+    const Helpers = require('./private');
 
 
     // Store the Query input for easier access
-    var query = inputs.query;
+    let query = inputs.query;
     query.meta = query.meta || {};
 
 
     // Find the model definition
-    var model = inputs.models[query.using];
+    let model = inputs.models[query.using];
     if (!model) {
       return exits.invalidDatastore();
     }
 
 
     // Set a flag if a leased connection from outside the adapter was used or not.
-    var leased = _.has(query.meta, 'leasedConnection');
+    let leased = _.has(query.meta, 'leasedConnection');
 
 
     //  ╔═╗╔═╗╔╗╔╦  ╦╔═╗╦═╗╔╦╗  ┌┬┐┌─┐  ┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┐┌┌┬┐
@@ -90,7 +73,7 @@ module.exports = require('machine').build({
     // build a SQL query.
     // See: https://github.com/treelinehq/waterline-query-docs for more info
     // on Waterline Query Statements.
-    var statement;
+    let statement;
     try {
       statement = Converter({
         model: query.using,
@@ -103,12 +86,9 @@ module.exports = require('machine').build({
     }
 
     // Compile the original Waterline Query
-    var compiledQuery;
-    try {
-      compiledQuery = Helpers.query.compileStatement(statement);
-    } catch (e) {
-      return exits.error(e);
-    }
+    let compiledQuery = await Helpers.query.compileStatement(statement).catch(err => {
+      return exits.error(err);
+    });
 
     //  ╔═╗╔═╗╔═╗╦ ╦╔╗╔  ┌─┐┌─┐┌┐┌┌┐┌┌─┐┌─┐┌┬┐┬┌─┐┌┐┌
     //  ╚═╗╠═╝╠═╣║║║║║║  │  │ │││││││├┤ │   │ ││ ││││
@@ -117,38 +97,28 @@ module.exports = require('machine').build({
     //  │ │├┬┘  │ │└─┐├┤   │  ├┤ ├─┤└─┐├┤  ││  │  │ │││││││├┤ │   │ ││ ││││
     //  └─┘┴└─  └─┘└─┘└─┘  ┴─┘└─┘┴ ┴└─┘└─┘─┴┘  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
     // Spawn a new connection for running queries on.
-    Helpers.connection.spawnOrLeaseConnection(inputs.datastore, query.meta, function spawnConnectionCb(err, connection) {
-      if (err) {
-        return exits.badConnection(err);
-      }
+    const reportConnection = await Helpers.connection.spawnOrLeaseConnection(inputs.datastore, query.meta).catch(err => {
+      return exits.badConnection(err);
+    });
 
-      //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-      //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
-      //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
-      var queryType = 'avg';
+    //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+    //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
+    //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
+    let queryType = 'avg';
+    const report = await Helpers.query.runQuery({
+      connection: reportConnection,
+      nativeQuery: compiledQuery.nativeQuery,
+      valuesToEscape: compiledQuery.valuesToEscape,
+      meta: compiledQuery.meta,
+      queryType: queryType,
+      disconnectOnError: !leased
+    }, inputs.datastore.manager).catch(err => {
+      return exits.error(err);
+    });
 
-      Helpers.query.runQuery({
-          connection: connection,
-          nativeQuery: compiledQuery.nativeQuery,
-          valuesToEscape: compiledQuery.valuesToEscape,
-          meta: compiledQuery.meta,
-          queryType: queryType,
-          disconnectOnError: leased ? false : true
-        }, inputs.datastore.manager,
-
-        function runQueryCb(err, report) {
-          // The runQuery helper will automatically release the connection on error
-          // if needed.
-          if (err) {
-            return exits.error(err);
-          }
-
-          // Always release the connection unless a leased connection from outside
-          // the adapter was used.
-          Helpers.connection.releaseConnection(connection, inputs.datastore.manager, leased, function releaseConnectionCb() {
-            return exits.success(report.result);
-          }); // </ releaseConnection >
-      }); // </ runQuery >
-    }); // </ spawnConnection >
+    // Always release the connection unless a leased connection from outside
+    // the adapter was used.
+    await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
+    return exits.success(report.result);
   }
 });

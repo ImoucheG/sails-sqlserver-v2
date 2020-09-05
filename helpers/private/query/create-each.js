@@ -12,33 +12,33 @@
 // turned on, the records must be inserted one by one in order to return the
 // correct primary keys.
 
-var _ = require('@sailshq/lodash');
-var async = require('async');
-var compileStatement = require('./compile-statement');
-var runQuery = require('./run-query');
+const _ = require('@sailshq/lodash');
+const async = require('async');
+const compileStatement = require('./compile-statement');
+const runQuery = require('./run-query');
 
-module.exports = function createEach(options, manager, cb) {
+module.exports = async function createEach(options, manager) {
   //  ╦  ╦╔═╗╦  ╦╔╦╗╔═╗╔╦╗╔═╗  ┌─┐┌─┐┌┬┐┬┌─┐┌┐┌┌─┐
   //  ╚╗╔╝╠═╣║  ║ ║║╠═╣ ║ ║╣   │ │├─┘ │ ││ ││││└─┐
   //   ╚╝ ╩ ╩╩═╝╩═╩╝╩ ╩ ╩ ╚═╝  └─┘┴   ┴ ┴└─┘┘└┘└─┘
   if (_.isUndefined(options) || !_.isPlainObject(options)) {
-    throw new Error('Invalid options argument. Options must contain: connection, statement, fetch, and primaryKey.');
+    return Promise.reject(new Error('Invalid options argument. Options must contain: connection, statement, fetch, and primaryKey.'));
   }
 
   if (!_.has(options, 'connection') || !_.isObject(options.connection)) {
-    throw new Error('Invalid option used in options argument. Missing or invalid connection.');
+    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid connection.'));
   }
 
   if (!_.has(options, 'statement') || !_.isPlainObject(options.statement)) {
-    throw new Error('Invalid option used in options argument. Missing or invalid statement.');
+    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid statement.'));
   }
 
   if (!_.has(options, 'fetch') || !_.isBoolean(options.fetch)) {
-    throw new Error('Invalid option used in options argument. Missing or invalid fetch flag.');
+    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid fetch flag.'));
   }
 
   if (!_.has(options, 'primaryKey') || !_.isString(options.primaryKey)) {
-    throw new Error('Invalid option used in options argument. Missing or invalid primaryKey flag.');
+    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid primaryKey flag.'));
   }
 
 
@@ -63,37 +63,25 @@ module.exports = function createEach(options, manager, cb) {
     //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
     //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
     // Compile the statement into a native query.
-    var compiledQuery;
-    try {
-      compiledQuery = compileStatement(options.statement, options.meta);
-    } catch (e) {
-      // If the statement could not be compiled, return an error.
-      return cb(e);
-    }
+    let compiledQuery = await compileStatement(options.statement, options.meta).catch(err => {
+      return Promise.reject(err);
+    });
 
     //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
     //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
     //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
     // Run the initial query (bulk insert)
-    runQuery({
-        connection: options.connection,
-        nativeQuery: compiledQuery.nativeQuery,
-        valuesToEscape: compiledQuery.valuesToEscape,
-        meta: compiledQuery.meta,
-        disconnectOnError: false,
-        queryType: 'insert'
-      }, manager,
-
-      function runQueryCb(err, report) {
-        if (err) {
-          return cb(err);
-        }
-
-        return cb(undefined, report.result);
-      });
-
-    // Return early
-    return;
+    const report = await runQuery({
+      connection: options.connection,
+      nativeQuery: compiledQuery.nativeQuery,
+      valuesToEscape: compiledQuery.valuesToEscape,
+      meta: compiledQuery.meta,
+      disconnectOnError: false,
+      queryType: 'insert'
+    }, manager).catch(err => {
+      return Promise.reject(err);
+    });
+    return Promise.resolve(report.result);
   }
 
 
@@ -106,13 +94,13 @@ module.exports = function createEach(options, manager, cb) {
   //
   // Break apart the statement's insert records and create a single create query
   // for each one. Collect the result of the insertId's to be returned.
-  var newRecords = options.statement.insert;
-  var insertIds = [];
+  let newRecords = options.statement.insert;
+  let insertIds = [];
 
   // Be sure to run these in series so that the insert order is maintained.
-  async.eachSeries(newRecords, function runCreateQuery(record, nextRecord) {
+  async.eachSeries(newRecords, async function runCreateQuery(record, nextRecord) {
     // Build up a statement to use.
-    var statement = {
+    let statement = {
       insert: record,
       into: options.statement.into
     };
@@ -121,15 +109,10 @@ module.exports = function createEach(options, manager, cb) {
     //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
     //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
     // Compile the statement into a native query.
-    var compiledQuery;
-    try {
-      compiledQuery = compileStatement(statement);
-    } catch (e) {
-      // If the statement could not be compiled, return an error.
-      return nextRecord(e);
-    }
-
-    var insertOptions = {
+    let compiledQuery = await compileStatement(statement).catch(err => {
+      return nextRecord(err);
+    });
+    let insertOptions = {
       connection: options.connection,
       nativeQuery: compiledQuery.nativeQuery,
       valuesToEscape: compiledQuery.valuesToEscape,
@@ -148,72 +131,59 @@ module.exports = function createEach(options, manager, cb) {
     //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
     //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
     // Run the initial query (bulk insert)
-      runQuery(insertOptions, manager, function runQueryCb(err, report) {
-        if (err) {
-          return nextRecord(err);
-        }
-
-        // Add the insert id to the array
-        insertIds.push(report.result.inserted);
-
-        return nextRecord(undefined, report.result);
-      });
-  },
-
-  function fetchCreateCb(err) {
-    if (err) {
-      return cb(err);
-    }
-
-
-    //  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗  ┌┬┐┬ ┬┌─┐  ┌─┐┌─┐┌┬┐┌─┐┬ ┬
-    //  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║   │ ├─┤├┤   ├┤ ├┤  │ │  ├─┤
-    //  ╩  ╚═╝╩╚═╚  ╚═╝╩╚═╩ ╩   ┴ ┴ ┴└─┘  └  └─┘ ┴ └─┘┴ ┴
-    var fetchStatement = {
-      select: '*',
-      from: options.statement.into,
-      where: {},
-      orderBy: [{}]
-    };
-
-    // Sort the records by primary key
-    fetchStatement.orderBy[0][options.primaryKey] = 'ASC';
-
-    // Build up the WHERE clause for the statement to get the newly inserted
-    // records.
-    fetchStatement.where[options.primaryKey] = { 'in': insertIds };
-
-
-    //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-    //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
-    //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
-    // Compile the statement into a native query.
-    var compiledQuery;
-    try {
-      compiledQuery = compileStatement(fetchStatement);
-    } catch (err) {
-      // If the statement could not be compiled, return an error.
-      return cb(err);
-    }
-
-
-    //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-    //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
-    //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
-    // Run the fetch query.
-    runQuery({
-      connection: options.connection,
-      nativeQuery: compiledQuery.nativeQuery,
-      valuesToEscape: compiledQuery.valuesToEscape,
-      meta: compiledQuery.meta,
-      disconnectOnError: false,
-      queryType: 'select'
-    }, manager, function runQueryCb(err, report) {
-      if (err) {
-        return cb(err);
-      }
-
-      return cb(undefined, report.result);
+    const report = await runQuery(insertOptions, manager).catch(err => {
+      return nextRecord(err);
     });
-  });
+      // Add the insert id to the array
+    insertIds.push(report.result.inserted);
+    return nextRecord(undefined, report.result);
+  },
+    async function fetchCreateCb(err) {
+      if (err) {
+        return Promise.reject(err);
+      }
+      //  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗  ┌┬┐┬ ┬┌─┐  ┌─┐┌─┐┌┬┐┌─┐┬ ┬
+      //  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║   │ ├─┤├┤   ├┤ ├┤  │ │  ├─┤
+      //  ╩  ╚═╝╩╚═╚  ╚═╝╩╚═╩ ╩   ┴ ┴ ┴└─┘  └  └─┘ ┴ └─┘┴ ┴
+      var fetchStatement = {
+        select: '*',
+        from: options.statement.into,
+        where: {},
+        orderBy: [{}]
+      };
+
+      // Sort the records by primary key
+      fetchStatement.orderBy[0][options.primaryKey] = 'ASC';
+
+      // Build up the WHERE clause for the statement to get the newly inserted
+      // records.
+      fetchStatement.where[options.primaryKey] = {'in': insertIds};
+
+
+      //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+      //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
+      //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
+      // Compile the statement into a native query.
+      let compiledQuery = compileStatement(fetchStatement).catch(err => {
+        return Promise.reject(err);
+      });
+
+
+      //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+      //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
+      //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
+      // Run the fetch query.
+      const report = await runQuery({
+        connection: options.connection,
+        nativeQuery: compiledQuery.nativeQuery,
+        valuesToEscape: compiledQuery.valuesToEscape,
+        meta: compiledQuery.meta,
+        disconnectOnError: false,
+        queryType: 'select'
+      }, manager).catch(err => {
+        return Promise.reject(err);
+      });
+
+      return Promise.resolve(report.result);
+    });
 };

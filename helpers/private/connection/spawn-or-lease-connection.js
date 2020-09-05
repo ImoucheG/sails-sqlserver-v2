@@ -9,16 +9,14 @@
 // a helper or spawns a new connection. This is a normalized helper so the actual
 // helper methods don't need to deal with the branching logic.
 
-var _ = require('@sailshq/lodash');
-var spawnConnection = require('./spawn-connection');
+const _ = require('@sailshq/lodash');
+const spawnConnection = require('./spawn-connection');
 
-module.exports = function spawnOrLeaseConnection(datastore, meta, cb) {
+module.exports = async function spawnOrLeaseConnection(datastore, meta) {
   if (!_.isUndefined(meta) && _.has(meta, 'leasedConnection')) {
-    return setImmediate(function ensureAsync() {
-      cb(null, meta.leasedConnection);
-    });
+    return Promise.resolve(meta.leasedConnection);
   }
-
   // Otherwise spawn the connection
-  spawnConnection(datastore, cb);
+  const connection = await spawnConnection(datastore);
+  return Promise.resolve(connection);
 };

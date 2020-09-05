@@ -125,6 +125,6 @@
   //  a local variable-- especially for folks new to more advanced JavaScript
   //  and who might not recognize the subtle, yet critically important differences between our seemingly
   //  between `null` and `undefined`, and the impact on `typeof` checks)
-  "-W080": true
-
+  "-W080": true,
+  "esversion": 8
 }

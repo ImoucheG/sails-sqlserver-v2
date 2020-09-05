@@ -14,16 +14,14 @@
 //
 // Create a new connection manager to use.
 
-var SQLSERVER = require('machinepack-sqlserver-adapter');
+const SQLSERVER = require('machinepack-sqlserver-adapter');
 
-module.exports = function createManager(connectionConfiguration, config, cb) {
-  SQLSERVER.createManager({
+module.exports = async function createManager(connectionConfiguration, config) {
+  const report = await SQLSERVER.createManager({
     connectionConfig: connectionConfiguration,
     meta: config
-  }).exec(function createManagerCb(err, report) {
-    if (err) {
-      return cb(new Error('There was an error creating the connection manager.\n\n' + err.stack));
-    }
-    return cb(report);
+  }).catch(err => {
+    return Promise.reject(new Error('There was an error creating the connection manager.\n\n' + err.stack));
   });
+  return Promise.resolve(report);
 };

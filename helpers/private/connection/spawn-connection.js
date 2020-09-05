@@ -14,27 +14,17 @@
 //
 // Instantiate a new connection from the connection manager.
 
-var SQLSERVER = require('machinepack-sqlserver-adapter');
-
-module.exports = function spawnConnection(datastore, cb) {
+const SQLSERVER = require('machinepack-sqlserver-adapter');
+module.exports = async function spawnConnection(datastore) {
   // Validate datastore
   if (!datastore || !datastore.manager || !datastore.config) {
-    return cb(new Error('Spawn Connection requires a valid datastore.'));
+    return Promise.reject(new Error('Spawn Connection requires a valid datastore.'));
   }
-
-  SQLSERVER.getConnection({
+  const reportConnection = await SQLSERVER.getConnection({
     manager: datastore.manager,
     meta: datastore.config
-  })
-  .switch({
-    error: function error(err) {
-      return cb(err);
-    },
-    failed: function failedToConnect(err) {
-      return cb(err);
-    },
-    success: function success(connection) {
-      return cb(null, connection.connection);
-    }
+  }).catch(err => {
+    return Promise.reject(err);
   });
+  return Promise.resolve(reportConnection.connection);
 };

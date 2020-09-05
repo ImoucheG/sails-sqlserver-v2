@@ -14,14 +14,15 @@
 //
 // Transform a Waterline Query Statement into a SQL query.
 
-var SQLSERVER = require('machinepack-sqlserver-adapter');
+const SQLSERVER = require('machinepack-sqlserver-adapter');
 
-module.exports = function compileStatement(statement, model, meta) {
-  var report = SQLSERVER.compileStatement({
+module.exports = async function compileStatement(statement, model, meta) {
+  var report = await SQLSERVER.compileStatement({
     statement: statement,
     model: model,
     meta: meta
-  }).execSync();
-
-  return report;
+  }).catch(err => {
+    return Promise.reject(err);
+  });
+  return Promise.resolve(report);
 };
