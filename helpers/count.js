@@ -101,39 +101,28 @@ module.exports = require('machine').build({
     //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
     //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
     let queryType = 'count';
+
     let columns = [];
     for (const column of Object.keys(statement.where)) {
-      if (statement.where[column].in) {
-        for (const value of statement.where[column].in) {
-          columns.push(column);
+      if (statement.where[column].in || column === 'and') {
+        const toIterate = statement.where[column].in ? statement.where[column].in : statement.where[column];
+        for (const value of toIterate) {
+          if (typeof value === 'object') {
+            for (const key in value) {
+              if (value[key] && value[key].in) {
+                for (const inItem of value[key].in) {
+                  columns.push(key);
+                }
+              } else {
+                columns.push(key);
+              }
+            }
+          } else {
+            columns.push(column);
+          }
         }
       } else {
         columns.push(column);
-      }
-    }
-    if (statement.where.and) {
-      columns = [];
-      for (const column of statement.where.and) {
-        if (Object.keys(column)[0] === 'or') {
-          for (const columnOr of column.or) {
-            columns.push(Object.keys(columnOr)[0]);
-            if (Object.keys(columnOr)[0].in) {
-              for (const value of Object.keys(columnOr)[0].in) {
-                columns.push(Object.keys(columnOr)[0]);
-              }
-            } else {
-              columns.push(Object.keys(columnOr)[0]);
-            }
-          }
-        } else {
-          if (Object.keys(column)[0].in) {
-            for (const value of Object.keys(column)[0].in) {
-              columns.push(column);
-            }
-          } else {
-            columns.push(Object.keys(column)[0]);
-          }
-        }
       }
     }
     const report = await Helpers.query.runQuery({
