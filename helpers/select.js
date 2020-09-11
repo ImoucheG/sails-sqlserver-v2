@@ -109,7 +109,7 @@ module.exports = require('machine').build({
 
     let columns = [];
     for (const column of Object.keys(statement.where)) {
-      if (statement.where[column].in) {
+      if (statement.where[column] && statement.where[column].in) {
         for (const value of statement.where[column].in) {
           columns.push(column);
         }

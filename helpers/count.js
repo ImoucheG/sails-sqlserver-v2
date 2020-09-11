@@ -104,7 +104,7 @@ module.exports = require('machine').build({
 
     let columns = [];
     for (const column of Object.keys(statement.where)) {
-      if (statement.where[column].in || column === 'and') {
+      if ((statement.where[column] && statement.where[column].in) || column === 'and') {
         const toIterate = statement.where[column].in ? statement.where[column].in : statement.where[column];
         for (const value of toIterate) {
           if (typeof value === 'object') {
