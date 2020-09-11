@@ -106,16 +106,39 @@ module.exports = require('machine').build({
     //  ╠╦╝║ ║║║║  └─┐├┤ │  ├┤ │   │   │─┼┐│ │├┤ ├┬┘└┬┘
     //  ╩╚═╚═╝╝╚╝  └─┘└─┘┴─┘└─┘└─┘ ┴   └─┘└└─┘└─┘┴└─ ┴
     let queryType = 'select';
-    let columns = Object.keys(statement.where);
+
+    let columns = [];
+    for (const column of Object.keys(statement.where)) {
+      if (statement.where[column].in) {
+        for (const value of statement.where[column].in) {
+          columns.push(column);
+        }
+      } else {
+        columns.push(column);
+      }
+    }
     if (statement.where.and) {
       columns = [];
       for (const column of statement.where.and) {
         if (Object.keys(column)[0] === 'or') {
           for (const columnOr of column.or) {
             columns.push(Object.keys(columnOr)[0]);
+            if (Object.keys(columnOr)[0].in) {
+              for (const value of Object.keys(columnOr)[0].in) {
+                columns.push(Object.keys(columnOr)[0]);
+              }
+            } else {
+              columns.push(Object.keys(columnOr)[0]);
+            }
           }
         } else {
-          columns.push(Object.keys(column)[0]);
+          if (Object.keys(column)[0].in) {
+            for (const value of Object.keys(column)[0].in) {
+              columns.push(column);
+            }
+          } else {
+            columns.push(Object.keys(column)[0]);
+          }
         }
       }
     }

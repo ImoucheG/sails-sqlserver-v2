@@ -35,7 +35,7 @@ module.exports = async function runNativeQuery(connection, manager, query, value
     if (err.exit === 'queryFailed') {
       // Parse the native query error into a normalized format
       let parsedError = await SQLSERVER.parseNativeQueryError({
-        nativeQueryError: report.error
+        nativeQueryError: err
       }).catch(e => {
         return Promise.reject(e);
       });
@@ -49,15 +49,15 @@ module.exports = async function runNativeQuery(connection, manager, query, value
       }
 
       if (catchAllError) {
-        return Promise.reject(report.error);
+        return Promise.reject(err);
       }
 
       // Attach parsed error as footprint on the native query error
       if (!_.has(report.error, 'footprint')) {
-        report.error.footprint = parsedError;
+        err.error.footprint = parsedError;
       }
 
-      return Promise.reject(report.error);
+      return Promise.reject(err.error);
     }
   });
   return Promise.resolve(report.result.rows);
