@@ -52,7 +52,7 @@ module.exports = async function runQuery(options, manager) {
     if (err.code === 'queryFailed') {
       // Parse the native query error into a normalized format
       parsedError = await SQLSERVER.parseNativeQueryError({
-        nativeQueryError: err.error
+        nativeQueryError: err
       }).catch(async e => {
         if (!options.disconnectOnError) {
           return Promise.reject(e);

@@ -102,29 +102,7 @@ module.exports = require('machine').build({
     //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
     let queryType = 'count';
 
-    let columns = [];
-    for (const column of Object.keys(statement.where)) {
-      if ((statement.where[column] && statement.where[column].in) || column === 'and') {
-        const toIterate = statement.where[column].in ? statement.where[column].in : statement.where[column];
-        for (const value of toIterate) {
-          if (typeof value === 'object') {
-            for (const key in value) {
-              if (value[key] && value[key].in) {
-                for (const inItem of value[key].in) {
-                  columns.push(key);
-                }
-              } else {
-                columns.push(key);
-              }
-            }
-          } else {
-            columns.push(column);
-          }
-        }
-      } else {
-        columns.push(column);
-      }
-    }
+    let columns = await Helpers.query.getColumns(statement, compiledQuery);
     const report = await Helpers.query.runQuery({
       connection: reportConnection,
       statement: {columns: columns, tableName: statement.from},

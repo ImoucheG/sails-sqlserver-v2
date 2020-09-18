@@ -44,6 +44,10 @@ module.exports = require('machine').build({
     notUnique: {
       friendlyName: 'Not Unique',
       outputType: 'ref'
+    },
+    queryFailed: {
+      friendlyName: 'Not can execute or prepare a query',
+      outputType: 'ref'
     }
   },
   fn: async function create(inputs, exits) {
@@ -156,6 +160,9 @@ module.exports = require('machine').build({
     }, inputs.datastore.manager).catch(err => {
       if (err.footprint && err.footprint.identity === 'notUnique') {
         return exits.notUnique(err);
+      }
+      if (err.footprint && err.footprint.identity === 'queryFailed') {
+        return exits.queryFailed(err);
       }
       return exits.error(err);
     });

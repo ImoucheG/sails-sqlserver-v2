@@ -19,6 +19,7 @@ module.exports = {
     preProcessRecord: require('./query/pre-process-record'),
     runNativeQuery: require('./query/run-native-query'),
     runQuery: require('./query/run-query'),
+    getColumns: require('./query/get-columns'),
     update: require('./query/update')
   },
 
@@ -27,5 +28,9 @@ module.exports = {
     buildIndexes: require('./schema/build-indexes'),
     buildSchema: require('./schema/build-schema'),
     escapeTableName: require('./schema/escape-table-name')
+  },
+  // Helpers utils
+  utils: {
+    getColumnBraced: require('./utils/get-column-braced'),
   }
 };

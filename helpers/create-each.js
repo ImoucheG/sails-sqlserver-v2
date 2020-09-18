@@ -51,6 +51,10 @@ module.exports = require('machine').build({
     notUnique: {
       friendlyName: 'Not Unique',
       outputExample: '==='
+    },
+    queryFailed: {
+      friendlyName: 'Not can execute or prepare a query',
+      outputType: 'ref'
     }
   },
   fn: async function create(inputs, exits) {

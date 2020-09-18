@@ -10,6 +10,7 @@
 const _ = require('@sailshq/lodash');
 const compileStatement = require('./compile-statement');
 const runQuery = require('./run-query');
+const getColumns = require('./get-columns');
 
 module.exports = async function createEach(options, manager) {
   //  ╦  ╦╔═╗╦  ╦╔╦╗╔═╗╔╦╗╔═╗  ┌─┐┌─┐┌┬┐┬┌─┐┌┐┌┌─┐
@@ -49,7 +50,7 @@ module.exports = async function createEach(options, manager) {
   //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
   // Run the initial query (bulk insert)
 
-  let columns = Object.keys(options.statement.insert).sort();
+  const columns = await getColumns(options.statement, compiledQuery, 'insert');
   let insertOptions = {
     connection: options.connection,
     statement: {columns: columns, tableName: options.statement.into},

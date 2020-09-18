@@ -39,6 +39,10 @@ module.exports = require('machine').build({
     badConnection: {
       friendlyName: 'Bad connection',
       description: 'A connection either could not be obtained or there was an error using the connection.'
+    },
+    queryFailed: {
+      friendlyName: 'Not can execute or prepare a query',
+      outputType: 'ref'
     }
   },
   fn: async function destroy(inputs, exits) {

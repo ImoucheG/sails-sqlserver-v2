@@ -44,6 +44,10 @@ module.exports = require('machine').build({
     notUnique: {
       friendlyName: 'Not Unique',
       outputType: 'ref'
+    },
+    queryFailed: {
+      friendlyName: 'Not can execute or prepare a query',
+      outputType: 'ref'
     }
   },
   fn: async function update(inputs, exits) {

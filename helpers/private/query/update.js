@@ -12,6 +12,7 @@
 const _ = require('@sailshq/lodash');
 const runQuery = require('./run-query');
 const compileStatement = require('./compile-statement');
+const getColumns = require('./get-columns');
 
 
 module.exports = async(options, manager) => {
@@ -73,19 +74,7 @@ module.exports = async(options, manager) => {
   //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
   // Run the initial find query
 
-  let columnsSelect = Object.keys(fetchStatementSelect.where);
-  if (fetchStatementSelect.where.and) {
-    columnsSelect = [];
-    for (const column of fetchStatementSelect.where.and) {
-      if (Object.keys(column)[0] === 'or') {
-        for (const columnOr of column.or) {
-          columnsSelect.push(Object.keys(columnOr)[0]);
-        }
-      } else {
-        columnsSelect.push(Object.keys(column)[0]);
-      }
-    }
-  }
+  const columnsSelect = await getColumns(fetchStatementSelect, compiledFetchSelectQuery, 'select');
   const selectReport = await runQuery({
     connection: options.connection,
     statement: {columns: columnsSelect, tableName: fetchStatementSelect.from},
@@ -116,20 +105,8 @@ module.exports = async(options, manager) => {
   //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
   //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
   // Run the initial query
-  let columnsUpdate = Object.keys(options.statement.update).sort();
-  let columnsWhere = Object.keys(options.statement.where);
-  if (options.statement.where.and) {
-    columnsWhere = [];
-    for (const column of options.statement.where.and) {
-      if (Object.keys(column)[0] === 'or') {
-        for (const columnOr of column.or) {
-          columnsWhere.push(Object.keys(columnOr)[0]);
-        }
-      } else {
-        columnsWhere.push(Object.keys(column)[0]);
-      }
-    }
-  }
+  let columnsUpdate = await getColumns(options.statement, compiledUpdateQuery, 'update');
+  const columnsWhere = await getColumns(options.statement, compiledUpdateQuery, 'select');
   columnsUpdate = columnsUpdate.concat(columnsWhere);
   let report = await runQuery({
     connection: options.connection,
@@ -167,7 +144,7 @@ module.exports = async(options, manager) => {
   };
 
 
-// Handle case where pk value was changed:
+  // Handle case where pk value was changed:
   if (!_.isUndefined(options.statement.update[options.primaryKey])) {
     // There should only ever be either zero or one record that were found before.
     if (selectPks.length === 0) { /* do nothing */
@@ -183,31 +160,19 @@ module.exports = async(options, manager) => {
   }
 
 
-//  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-//  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
-//  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
-// Compile the statement into a native query.
+  //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+  //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
+  //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
+  // Compile the statement into a native query.
   let compiledFetchQueryAfterUpdate = await compileStatement(fetchStatementAfterUpdate).catch(err => {
     return Promise.reject(err);
   });
 
-//  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-//  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
-//  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
-// Run the fetch query.
-  let columnsFetchAfterUpdate = Object.keys(fetchStatementAfterUpdate.where);
-  if (fetchStatementAfterUpdate.where.and) {
-    columnsFetchAfterUpdate = [];
-    for (const column of fetchStatementAfterUpdate.where.and) {
-      if (Object.keys(column)[0] === 'or') {
-        for (const columnOr of column.or) {
-          columnsFetchAfterUpdate.push(Object.keys(columnOr)[0]);
-        }
-      } else {
-        columnsFetchAfterUpdate.push(Object.keys(column)[0]);
-      }
-    }
-  }
+  //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+  //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
+  //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
+  // Run the fetch query.
+  let columnsFetchAfterUpdate = await getColumns(fetchStatementAfterUpdate, compiledFetchQueryAfterUpdate, 'select');
   report = await runQuery({
     connection: options.connection,
     statement: {columns: columnsFetchAfterUpdate, tableName: fetchStatementAfterUpdate.from},
@@ -220,5 +185,4 @@ module.exports = async(options, manager) => {
     return Promise.reject(err);
   });
   return Promise.resolve(report.result);
-}
-;
+};
