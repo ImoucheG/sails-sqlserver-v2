@@ -7,8 +7,11 @@ module.exports = async function getColumns(statement, compiledQuery, type = 'sel
     const Helpers = require('../../private');
     let columnsToReturn = [];
 
-    // SELECT
-    if (type === 'select' || type === 'destroy') {
+    if (type === 'select' || type === 'destroy' || type === 'sum') {
+      // If SUM
+      if (!statement.where && statement.from.where) {
+        statement.where = statement.from.where;
+      }
       const whereKeys = Object.keys(statement.where);
       if (whereKeys.length > 0) {
         for (const column of whereKeys) {
@@ -16,9 +19,9 @@ module.exports = async function getColumns(statement, compiledQuery, type = 'sel
           // Convert table.column to [table].[column]
           let columnsBraced = await Helpers.utils.getColumnBraced(column);
           // If And
-          if ((columnElement && columnElement.in) || (typeof columnElement === 'object' && columnElement && columnElement.length > 0)) {
+          if ((columnElement && (columnElement.in || columnElement.nin)) || (typeof columnElement === 'object' && columnElement && columnElement.length > 0)) {
             // use In array or diretely the element
-            const toIterate = columnElement.in ? columnElement.in : columnElement;
+            const toIterate = columnElement.in ? columnElement.in : columnElement.nin ? columnElement.nin : columnElement;
             for (let value of toIterate) {
               const valueCriteria = Object.keys(value)[0];
               if (value && typeof value === 'object' && (valueCriteria === 'or' || valueCriteria === 'and')) {
@@ -46,8 +49,8 @@ module.exports = async function getColumns(statement, compiledQuery, type = 'sel
                   if (value.hasOwnProperty(key)) {
                     const valueElement = value[key];
                     columnsBraced = await Helpers.utils.getColumnBraced(key);
-                    if (valueElement && valueElement.in) {
-                      for (const inItem of valueElement.in) {
+                    if (valueElement && (valueElement.in || valueElement.nin)) {
+                      for (const inItem of (valueElement.in ? valueElement.in : valueElement.nin)) {
                         columnsToReturn.push(key);
                       }
                     } else {
