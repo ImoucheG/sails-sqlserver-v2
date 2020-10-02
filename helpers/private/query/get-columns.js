@@ -7,11 +7,8 @@ module.exports = async function getColumns(statement, compiledQuery, type = 'sel
     const Helpers = require('../../private');
     let columnsToReturn = [];
 
-    if (type === 'select' || type === 'destroy' || type === 'sum') {
-      // If SUM
-      if (!statement.where && statement.from.where) {
-        statement.where = statement.from.where;
-      }
+    // SELECT
+    if (type === 'select' || type === 'destroy') {
       const whereKeys = Object.keys(statement.where);
       if (whereKeys.length > 0) {
         for (const column of whereKeys) {
@@ -49,8 +46,8 @@ module.exports = async function getColumns(statement, compiledQuery, type = 'sel
                   if (value.hasOwnProperty(key)) {
                     const valueElement = value[key];
                     columnsBraced = await Helpers.utils.getColumnBraced(key);
-                    if (valueElement && (valueElement.in || valueElement.nin)) {
-                      for (const inItem of (valueElement.in ? valueElement.in : valueElement.nin)) {
+                    if (valueElement && valueElement.in) {
+                      for (const inItem of valueElement.in) {
                         columnsToReturn.push(key);
                       }
                     } else {

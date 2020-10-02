@@ -100,12 +100,12 @@ module.exports = require('machine').build({
     //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
     //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
     let queryType = 'sum';
-    let columns = await Helpers.query.getColumns(statement, compiledQuery, 'sum');
+    let columns = await Helpers.query.getColumns(statement, compiledQuery);
     const report = await Helpers.query.runQuery({
       connection: reportConnection,
       nativeQuery: compiledQuery.nativeQuery,
       valuesToEscape: compiledQuery.valuesToEscape,
-      statement: {columns: columns, tableName: statement.from.from},
+      statement: {columns: columns, tableName: statement.from},
       meta: compiledQuery.meta,
       queryType: queryType,
       disconnectOnError: !leased

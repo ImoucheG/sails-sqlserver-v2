@@ -60,6 +60,7 @@ module.exports = async function runQuery(options, manager) {
         await releaseConnection(options.connection, manager, options.leased);
         return Promise.resolve();
       });
+      return Promise.reject(parsedError);
     }
     // If the catch all error was used, return an error instance instead of
     // the footprint.
@@ -100,7 +101,7 @@ module.exports = async function runQuery(options, manager) {
   //  ╠═╝╠═╣╠╦╝╚═╗║╣   │─┼┐│ │├┤ ├┬┘└┬┘  ├┬┘├┤ └─┐│ ││  │ └─┐
   //  ╩  ╩ ╩╩╚═╚═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴   ┴└─└─┘└─┘└─┘┴─┘┴ └─┘
   // If there was a query type given, parse the results.
-  if(report) {
+  if (report) {
     let queryResults = report.result;
     if (options.queryType) {
       queryResults = await SQLSERVER.parseNativeQueryResult({

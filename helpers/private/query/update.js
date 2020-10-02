@@ -86,105 +86,103 @@ module.exports = async(options, manager) => {
   }, manager).catch(err => {
     return Promise.reject(err);
   });
-  if (selectReport.result.length > 0) {
-    //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-    //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
-    //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
-    // Compile the update statement into a native query.
-    let compiledUpdateQuery = await compileStatement(options.statement).catch(e => {
-      return Promise.reject(e);
-    });
-    if (compiledUpdateQuery.nativeQuery.includes('top (@p0)') &&
-      typeof compiledUpdateQuery.valuesToEscape[compiledUpdateQuery.valuesToEscape.length - 1] === 'number') {
-      const top = compiledUpdateQuery.valuesToEscape[compiledUpdateQuery.valuesToEscape.length - 1];
-      compiledUpdateQuery.valuesToEscape.unshift(top);
-      compiledUpdateQuery.valuesToEscape.pop();
-    }
 
-    //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-    //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
-    //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
-    // Run the initial query
-    let columnsUpdate = await getColumns(options.statement, compiledUpdateQuery, 'update');
-    const columnsWhere = await getColumns(options.statement, compiledUpdateQuery, 'select');
-    columnsUpdate = columnsUpdate.concat(columnsWhere);
-    let report = await runQuery({
-      connection: options.connection,
-      statement: {columns: columnsUpdate, tableName: options.statement.using},
-      nativeQuery: compiledUpdateQuery.nativeQuery,
-      valuesToEscape: compiledUpdateQuery.valuesToEscape,
-      meta: compiledUpdateQuery.meta,
-      disconnectOnError: false,
-      queryType: 'update'
-    }, manager).catch(err => {
-      return Promise.reject(err);
-    });
+  //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+  //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
+  //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
+  // Compile the update statement into a native query.
+  let compiledUpdateQuery = await compileStatement(options.statement).catch(e => {
+    return Promise.reject(e);
+  });
+  if (compiledUpdateQuery.nativeQuery.includes('top (@p0)') &&
+    typeof compiledUpdateQuery.valuesToEscape[compiledUpdateQuery.valuesToEscape.length - 1] === 'number') {
+    const top = compiledUpdateQuery.valuesToEscape[compiledUpdateQuery.valuesToEscape.length - 1];
+    compiledUpdateQuery.valuesToEscape.unshift(top);
+    compiledUpdateQuery.valuesToEscape.pop();
+  }
 
-    // If no fetch was used, then nothing else needs to be done.
-    if (options.fetch) {
+  //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+  //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
+  //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
+  // Run the initial query
+  let columnsUpdate = await getColumns(options.statement, compiledUpdateQuery, 'update');
+  const columnsWhere = await getColumns(options.statement, compiledUpdateQuery, 'select');
+  columnsUpdate = columnsUpdate.concat(columnsWhere);
+  let report = await runQuery({
+    connection: options.connection,
+    statement: {columns: columnsUpdate, tableName: options.statement.using},
+    nativeQuery: compiledUpdateQuery.nativeQuery,
+    valuesToEscape: compiledUpdateQuery.valuesToEscape,
+    meta: compiledUpdateQuery.meta,
+    disconnectOnError: false,
+    queryType: 'update'
+  }, manager).catch(err => {
+    return Promise.reject(err);
+  });
 
-      //  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗  ┌┬┐┬ ┬┌─┐  ┌─┐┌─┐┌┬┐┌─┐┬ ┬
-      //  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║   │ ├─┤├┤   ├┤ ├┤  │ │  ├─┤
-      //  ╩  ╚═╝╩╚═╚  ╚═╝╩╚═╩ ╩   ┴ ┴ ┴└─┘  └  └─┘ ┴ └─┘┴ ┴
-      // Otherwise, fetch the newly inserted record
-      let fetchStatementAfterUpdate = {
-        select: '*',
-        from: options.statement.using,
-        where: {}
-      };
+  // If no fetch was used, then nothing else needs to be done.
+  if (!options.fetch) {
+    return Promise.resolve(report.result);
+  }
 
-      // Build the fetch statement where clause
-      let selectPks = _.map(selectReport.result, function mapPks(record) {
-        return record[options.primaryKey];
-      });
-      fetchStatementAfterUpdate.where[options.primaryKey] = {
-        in: selectPks
-      };
+  //  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗  ┌┬┐┬ ┬┌─┐  ┌─┐┌─┐┌┬┐┌─┐┬ ┬
+  //  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║   │ ├─┤├┤   ├┤ ├┤  │ │  ├─┤
+  //  ╩  ╚═╝╩╚═╚  ╚═╝╩╚═╩ ╩   ┴ ┴ ┴└─┘  └  └─┘ ┴ └─┘┴ ┴
+  // Otherwise, fetch the newly inserted record
+  let fetchStatementAfterUpdate = {
+    select: '*',
+    from: options.statement.using,
+    where: {}
+  };
 
-
-      // Handle case where pk value was changed:
-      if (!_.isUndefined(options.statement.update[options.primaryKey])) {
-        // There should only ever be either zero or one record that were found before.
-        if (selectPks.length === 0) { /* do nothing */
-        } else if (selectPks.length === 1) {
-          var oldPkValue = selectPks[0];
-          _.remove(fetchStatementAfterUpdate.where[options.primaryKey].in, oldPkValue);
-          var newPkValue = options.statement.update[options.primaryKey];
-          fetchStatementAfterUpdate.where[options.primaryKey].in.push(newPkValue);
-        } else {
-          return Promise.reject(new Error('Consistency violation: Updated multiple records to have the same primary key value. (PK' +
-            ' values should be unique!)'));
-        }
-      }
+  // Build the fetch statement where clause
+  let selectPks = _.map(selectReport.result, function mapPks(record) {
+    return record[options.primaryKey];
+  });
+  fetchStatementAfterUpdate.where[options.primaryKey] = {
+    in: selectPks
+  };
 
 
-      //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-      //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
-      //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
-      // Compile the statement into a native query.
-      let compiledFetchQueryAfterUpdate = await compileStatement(fetchStatementAfterUpdate).catch(err => {
-        return Promise.reject(err);
-      });
-
-
-      //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-      //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
-      //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
-      // Run the fetch query.
-      let columnsFetchAfterUpdate = await getColumns(fetchStatementAfterUpdate, compiledFetchQueryAfterUpdate, 'select');
-      report = await runQuery({
-        connection: options.connection,
-        statement: {columns: columnsFetchAfterUpdate, tableName: fetchStatementAfterUpdate.from},
-        nativeQuery: compiledFetchQueryAfterUpdate.nativeQuery,
-        valuesToEscape: compiledFetchQueryAfterUpdate.valuesToEscape,
-        meta: compiledFetchQueryAfterUpdate.meta,
-        disconnectOnError: false,
-        queryType: 'select'
-      }, manager).catch(err => {
-        return Promise.reject(err);
-      });
-      return Promise.resolve(report.result);
+// Handle case where pk value was changed:
+  if (!_.isUndefined(options.statement.update[options.primaryKey])) {
+    // There should only ever be either zero or one record that were found before.
+    if (selectPks.length === 0) { /* do nothing */
+    } else if (selectPks.length === 1) {
+      var oldPkValue = selectPks[0];
+      _.remove(fetchStatementAfterUpdate.where[options.primaryKey].in, oldPkValue);
+      var newPkValue = options.statement.update[options.primaryKey];
+      fetchStatementAfterUpdate.where[options.primaryKey].in.push(newPkValue);
+    } else {
+      return Promise.reject(new Error('Consistency violation: Updated multiple records to have the same primary key value. (PK' +
+        ' values should be unique!)'));
     }
   }
-  return Promise.resolve([]);
+
+
+//  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+//  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
+//  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
+// Compile the statement into a native query.
+  let compiledFetchQueryAfterUpdate = await compileStatement(fetchStatementAfterUpdate).catch(err => {
+    return Promise.reject(err);
+  });
+
+//  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+//  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
+//  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
+// Run the fetch query.
+  let columnsFetchAfterUpdate = await getColumns(fetchStatementAfterUpdate, compiledFetchQueryAfterUpdate, 'select');
+  report = await runQuery({
+    connection: options.connection,
+    statement: {columns: columnsFetchAfterUpdate, tableName: fetchStatementAfterUpdate.from},
+    nativeQuery: compiledFetchQueryAfterUpdate.nativeQuery,
+    valuesToEscape: compiledFetchQueryAfterUpdate.valuesToEscape,
+    meta: compiledFetchQueryAfterUpdate.meta,
+    disconnectOnError: false,
+    queryType: 'select'
+  }, manager).catch(err => {
+    return Promise.reject(err);
+  });
+  return Promise.resolve(report.result);
 };

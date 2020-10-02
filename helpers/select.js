@@ -127,21 +127,23 @@ module.exports = require('machine').build({
     // Always release the connection unless a leased connection from outside
     // the adapter was used.
     await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
-    let selectRecords = report.result;
-    let orm = {
-      collections: inputs.models
-    };
+    if (report) {
+      let selectRecords = report.result;
+      let orm = {
+        collections: inputs.models
+      };
 
-    // Process each record to normalize output
-    try {
-      Helpers.query.processEachRecord({
-        records: selectRecords,
-        identity: model.identity,
-        orm: orm
-      });
-    } catch (e) {
-      return exits.error(e);
+      // Process each record to normalize output
+      try {
+        Helpers.query.processEachRecord({
+          records: selectRecords,
+          identity: model.identity,
+          orm: orm
+        });
+      } catch (e) {
+        return exits.error(e);
+      }
+      return exits.success({records: selectRecords});
     }
-    return exits.success({records: selectRecords});
   }
 });
