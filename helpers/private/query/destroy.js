@@ -47,41 +47,40 @@ module.exports = async function insertRecord(options, manager) {
   // This is because in order to (semi) accurately return the records that were
   // destroyed in MySQL first they need to be found, then destroyed.
   // Only look up the records if fetch was used
-  if (!options.fetch) {
-    return Promise.resolve();
+  let fetchReport;
+  if (options.fetch) {
+
+    // Otherwise build up a select query
+    var fetchStatement = {
+      from: options.statement.from,
+      where: options.statement.where
+    };
+
+    //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+    //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
+    //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
+    // Compile the statement into a native query.
+    let compiledFetchQuery = await compileStatement(fetchStatement).catch(e => {
+      return Promise.reject(e);
+    });
+
+    //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+    //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
+    //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
+    // Run the initial find query
+    const columns = await getColumns(fetchStatement, compiledFetchQuery, 'select');
+    fetchReport = await runQuery({
+      connection: options.connection,
+      nativeQuery: compiledFetchQuery.nativeQuery,
+      statement: {columns: columns, tableName: fetchStatement.from},
+      valuesToEscape: compiledFetchQuery.valuesToEscape,
+      meta: compiledFetchQuery.meta,
+      disconnectOnError: false,
+      queryType: 'select'
+    }, manager).catch(err => {
+      return Promise.reject(err);
+    });
   }
-
-  // Otherwise build up a select query
-  var fetchStatement = {
-    from: options.statement.from,
-    where: options.statement.where
-  };
-
-  //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-  //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
-  //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
-  // Compile the statement into a native query.
-  let compiledFetchQuery = await compileStatement(fetchStatement).catch(e => {
-    return Promise.reject(e);
-  });
-
-  //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-  //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
-  //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
-  // Run the initial find query
-  let columns = await getColumns(fetchStatement, compiledFetchQuery, 'select');
-  const fetchReport = await runQuery({
-    connection: options.connection,
-    nativeQuery: compiledFetchQuery.nativeQuery,
-    statement: {columns: columns, tableName: fetchStatement.from},
-    valuesToEscape: compiledFetchQuery.valuesToEscape,
-    meta: compiledFetchQuery.meta,
-    disconnectOnError: false,
-    queryType: 'select'
-  }, manager).catch(err => {
-    return Promise.reject(err);
-  });
-
 
   //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
   //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
@@ -95,7 +94,7 @@ module.exports = async function insertRecord(options, manager) {
   //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
   //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
   // Run the destroy query
-  columns = await getColumns(options.statement, compiledUpdateQuery, 'destroy');
+  const columns = await getColumns(options.statement, compiledUpdateQuery, 'destroy');
   let report = await runQuery({
     connection: options.connection,
     nativeQuery: compiledUpdateQuery.nativeQuery,
