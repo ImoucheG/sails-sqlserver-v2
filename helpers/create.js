@@ -167,9 +167,12 @@ module.exports = require('machine').build({
       return exits.error(err);
     });
     // Release the connection if needed.
-    await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
+    await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased)
+      .catch(err => {
+        console.log(err);
+      });
 
-    if (fetchRecords) {
+    if (fetchRecords && insertedRecords) {
       // Process each record to normalize output
       try {
         Helpers.query.processEachRecord({
@@ -184,7 +187,10 @@ module.exports = require('machine').build({
       // Only return the first record (there should only ever be one)
       let insertedRecord = _.first(insertedRecords);
       return exits.success({record: insertedRecord});
+    } else {
+      if (insertedRecords) {
+        return exits.success();
+      }
     }
-    return exits.success();
   }
 });

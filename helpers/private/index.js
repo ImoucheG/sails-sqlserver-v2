@@ -32,5 +32,13 @@ module.exports = {
   // Helpers utils
   utils: {
     getColumnBraced: require('./utils/get-column-braced'),
+    checkIfPreparedParameter: require('./utils/check-if-prepared-parameter'),
+    getEditsColumns: require('./utils/get-edits-columns'),
+    getFindColumns: require('./utils/get-find-columns'),
+    getColumnsToIterate: require('./utils/get-columns-to-iterate'),
+    constructColumnsCriteriaArray: require('./utils/construct-columns-criteria-array'),
+    appendColumnCriteria: require('./utils/append-column-criteria'),
+    getPreparedColumns: require('./utils/get-prepared-columns'),
+    getStringParameterSection: require('./utils/get-string-parameter-section'),
   }
 };
