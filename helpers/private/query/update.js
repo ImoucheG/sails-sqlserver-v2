@@ -65,7 +65,7 @@ module.exports = async(options, manager) => {
   //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
   //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
   // Compile the statement into a native query.
-  let compiledFetchSelectQuery = await compileStatement(fetchStatementSelect).catch(e => {
+  let compiledFetchSelectQuery = await compileStatement(fetchStatementSelect, options.meta).catch(e => {
     return Promise.reject(e);
   });
 

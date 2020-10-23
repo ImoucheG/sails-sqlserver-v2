@@ -83,7 +83,7 @@ module.exports = require('machine').build({
       return exits.error(e);
     }
 
-    let compiledQuery = await Helpers.query.compileStatement(statement).catch(err => {
+    let compiledQuery = await Helpers.query.compileStatement(statement, query.meta).catch(err => {
       return exits.error(err);
     });
 

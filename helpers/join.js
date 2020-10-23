@@ -102,7 +102,7 @@ module.exports = require('machine').build({
     //  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴
     // Convert the parent statement into a native query. If the query can be run
     // in a single query then this will be the only query that runs.
-    let compiledQuery = await Helpers.query.compileStatement(statements.parentStatement).catch(err => {
+    let compiledQuery = await Helpers.query.compileStatement(statements.parentStatement, meta).catch(err => {
       return exits.error(err);
     });
 
@@ -240,100 +240,100 @@ module.exports = require('machine').build({
     // For each child statement, figure out how to turn the statement into
     // a native query and then run it. Add the results to the query cache.
     async.each(statements.childStatements, async function processChildStatements(template, next) {
-        //  ╦═╗╔═╗╔╗╔╔╦╗╔═╗╦═╗  ┬┌┐┌  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-        //  ╠╦╝║╣ ║║║ ║║║╣ ╠╦╝  ││││  │─┼┐│ │├┤ ├┬┘└┬┘
-        //  ╩╚═╚═╝╝╚╝═╩╝╚═╝╩╚═  ┴┘└┘  └─┘└└─┘└─┘┴└─ ┴
-        //  ┌┬┐┌─┐┌┬┐┌─┐┬  ┌─┐┌┬┐┌─┐
-        //   │ ├┤ │││├─┘│  ├─┤ │ ├┤
-        //   ┴ └─┘┴ ┴┴  ┴─┘┴ ┴ ┴ └─┘
-        // If the statement is an IN query, replace the values with the parent
-        // keys.
-        if (template.queryType === 'in') {
-          // Pull the last AND clause out - it's the one we added
-          let inClause = _.pullAt(template.statement.where.and, template.statement.where.and.length - 1);
+      //  ╦═╗╔═╗╔╗╔╔╦╗╔═╗╦═╗  ┬┌┐┌  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+      //  ╠╦╝║╣ ║║║ ║║║╣ ╠╦╝  ││││  │─┼┐│ │├┤ ├┬┘└┬┘
+      //  ╩╚═╚═╝╝╚╝═╩╝╚═╝╩╚═  ┴┘└┘  └─┘└└─┘└─┘┴└─ ┴
+      //  ┌┬┐┌─┐┌┬┐┌─┐┬  ┌─┐┌┬┐┌─┐
+      //   │ ├┤ │││├─┘│  ├─┤ │ ├┤
+      //   ┴ └─┘┴ ┴┴  ┴─┘┴ ┴ ┴ └─┘
+      // If the statement is an IN query, replace the values with the parent
+      // keys.
+      if (template.queryType === 'in') {
+        // Pull the last AND clause out - it's the one we added
+        let inClause = _.pullAt(template.statement.where.and, template.statement.where.and.length - 1);
 
-          // Grab the object inside the array that comes back
-          inClause = _.first(inClause);
+        // Grab the object inside the array that comes back
+        inClause = _.first(inClause);
 
-          // Modify the inClause using the actual parent key values
-          _.each(inClause, function modifyInClause(val) {
-            val.in = parentKeys;
-          });
-
-          // Reset the statement
-          template.statement.where.and.push(inClause);
-        }
-
-
-        //  ╦═╗╔═╗╔╗╔╔╦╗╔═╗╦═╗  ┬ ┬┌┐┌┬┌─┐┌┐┌  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-        //  ╠╦╝║╣ ║║║ ║║║╣ ╠╦╝  │ ││││││ ││││  │─┼┐│ │├┤ ├┬┘└┬┘
-        //  ╩╚═╚═╝╝╚╝═╩╝╚═╝╩╚═  └─┘┘└┘┴└─┘┘└┘  └─┘└└─┘└─┘┴└─ ┴
-        //  ┌┬┐┌─┐┌┬┐┌─┐┬  ┌─┐┌┬┐┌─┐
-        //   │ ├┤ │││├─┘│  ├─┤ │ ├┤
-        //   ┴ └─┘┴ ┴┴  ┴─┘┴ ┴ ┴ └─┘
-        // If the statement is a UNION type, loop through each parent key and
-        // build up a proper query.
-        if (template.queryType === 'union') {
-          let unionStatements = [];
-
-          // Build up an array of generated statements
-          _.each(parentKeys, function buildUnion(parentPk) {
-            let unionStatement = _.merge({}, template.statement);
-
-            // Replace the placeholder `?` values with the primary key of the
-            // parent record.
-            let andClause = _.pullAt(unionStatement.where.and, unionStatement.where.and.length - 1);
-            _.each(_.first(andClause), function replaceValue(val, key) {
-              _.first(andClause)[key] = parentPk;
-            });
-
-            // Add the UNION statement to the array of other statements
-            unionStatement.where.and.push(_.first(andClause));
-            unionStatements.push(unionStatement);
-          });
-
-          // Replace the final statement with the UNION ALL clause
-          if (unionStatements.length) {
-            template.statement = {unionAll: unionStatements};
-          }
-        }
-
-        // If there isn't a statement to be run, then just return
-        if (!template.statement) {
-          return next();
-        }
-
-
-        //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┐┌┌┬┐
-        //  ║  ║ ║║║║╠═╝║║  ║╣   └─┐ │ ├─┤ │ ├┤ │││├┤ │││ │
-        //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴
-        // Attempt to convert the statement into a native query
-        let compiledQuery = await Helpers.query.compileStatement(template.statement).catch(e => {
-          return next(e);
+        // Modify the inClause using the actual parent key values
+        _.each(inClause, function modifyInClause(val) {
+          val.in = parentKeys;
         });
 
+        // Reset the statement
+        template.statement.where.and.push(inClause);
+      }
 
-        //  ╦═╗╦ ╦╔╗╔  ┌─┐┬ ┬┬┬  ┌┬┐  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-        //  ╠╦╝║ ║║║║  │  ├─┤││   ││  │─┼┐│ │├┤ ├┬┘└┬┘
-        //  ╩╚═╚═╝╝╚╝  └─┘┴ ┴┴┴─┘─┴┘  └─┘└└─┘└─┘┴└─ ┴
-        // Run the native query
-        let columns = Object.keys(template.statement.where);
-        if (template.statement.where.and) {
-          columns = [];
-          for (const column of template.statement.where.and) {
-            columns.push(Object.keys(column)[0]);
-          }
+
+      //  ╦═╗╔═╗╔╗╔╔╦╗╔═╗╦═╗  ┬ ┬┌┐┌┬┌─┐┌┐┌  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+      //  ╠╦╝║╣ ║║║ ║║║╣ ╠╦╝  │ ││││││ ││││  │─┼┐│ │├┤ ├┬┘└┬┘
+      //  ╩╚═╚═╝╝╚╝═╩╝╚═╝╩╚═  └─┘┘└┘┴└─┘┘└┘  └─┘└└─┘└─┘┴└─ ┴
+      //  ┌┬┐┌─┐┌┬┐┌─┐┬  ┌─┐┌┬┐┌─┐
+      //   │ ├┤ │││├─┘│  ├─┤ │ ├┤
+      //   ┴ └─┘┴ ┴┴  ┴─┘┴ ┴ ┴ └─┘
+      // If the statement is a UNION type, loop through each parent key and
+      // build up a proper query.
+      if (template.queryType === 'union') {
+        let unionStatements = [];
+
+        // Build up an array of generated statements
+        _.each(parentKeys, function buildUnion(parentPk) {
+          let unionStatement = _.merge({}, template.statement);
+
+          // Replace the placeholder `?` values with the primary key of the
+          // parent record.
+          let andClause = _.pullAt(unionStatement.where.and, unionStatement.where.and.length - 1);
+          _.each(_.first(andClause), function replaceValue(val, key) {
+            _.first(andClause)[key] = parentPk;
+          });
+
+          // Add the UNION statement to the array of other statements
+          unionStatement.where.and.push(_.first(andClause));
+          unionStatements.push(unionStatement);
+        });
+
+        // Replace the final statement with the UNION ALL clause
+        if (unionStatements.length) {
+          template.statement = {unionAll: unionStatements};
         }
-        const queryResults = await Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager, compiledQuery.nativeQuery,
+      }
+
+      // If there isn't a statement to be run, then just return
+      if (!template.statement) {
+        return next();
+      }
+
+
+      //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┐┌┌┬┐
+      //  ║  ║ ║║║║╠═╝║║  ║╣   └─┐ │ ├─┤ │ ├┤ │││├┤ │││ │
+      //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴
+      // Attempt to convert the statement into a native query
+      let compiledQuery = await Helpers.query.compileStatement(template.statement, meta).catch(e => {
+        return next(e);
+      });
+
+
+      //  ╦═╗╦ ╦╔╗╔  ┌─┐┬ ┬┬┬  ┌┬┐  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+      //  ╠╦╝║ ║║║║  │  ├─┤││   ││  │─┼┐│ │├┤ ├┬┘└┬┘
+      //  ╩╚═╚═╝╝╚╝  └─┘┴ ┴┴┴─┘─┴┘  └─┘└└─┘└─┘┴└─ ┴
+      // Run the native query
+      let columns = Object.keys(template.statement.where);
+      if (template.statement.where.and) {
+        columns = [];
+        for (const column of template.statement.where.and) {
+          columns.push(Object.keys(column)[0]);
+        }
+      }
+      const queryResults = await Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager, compiledQuery.nativeQuery,
           compiledQuery.valuesToEscape, {columns: columns, tableName: template.statement.from}, compiledQuery.meta).catch(err => {
-          return next(err);
-        });
+        return next(err);
+      });
         // Extend the values in the cache to include the values from the
         // child query.
-        queryCache.extend(queryResults, template.instructions);
+      queryCache.extend(queryResults, template.instructions);
 
-        return next();
-      },
+      return next();
+    },
       async function asyncEachCb(err) {
         // Always release the connection unless a leased connection from outside
         // the adapter was used.

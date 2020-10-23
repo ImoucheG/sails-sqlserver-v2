@@ -1,6 +1,6 @@
 {
-  "_from": "sails-sqlserver-v2@2.1.6",
-  "_id": "sails-sqlserver-v2@2.1.6",
+  "_from": "sails-sqlserver-v2@2.1.7",
+  "_id": "sails-sqlserver-v2@2.1.7",
   "_inBundle": false,
   "_integrity": "sha512-9BSksVGOsRZc23lJnekJGne6PgKOjTsna5LJQcbjMFyKTJ49AuG1vPMrRSJ7UIOYDR66t3CbuHBndRk4tXjbxA==",
   "_location": "/sails-sqlserver-v2",
@@ -8,19 +8,19 @@
   "_requested": {
     "type": "version",
     "registry": true,
-    "raw": "sails-sqlserver-v2@2.1.6",
+    "raw": "sails-sqlserver-v2@2.1.7",
     "name": "sails-sqlserver-v2",
     "escapedName": "sails-sqlserver-v2",
-    "rawSpec": "2.1.6",
+    "rawSpec": "2.1.7",
     "saveSpec": null,
-    "fetchSpec": "2.1.6"
+    "fetchSpec": "2.1.7"
   },
   "_requiredBy": [
     "/"
   ],
-  "_resolved": "https://registry.npmjs.org/sails-sqlserver-v2/-/sails-sqlserver-v2-2.1.6.tgz",
+  "_resolved": "https://registry.npmjs.org/sails-sqlserver-v2/-/sails-sqlserver-v2-2.1.7.tgz",
   "_shasum": "07e70153b4e91d2ad2db5262e612e2b1ee9409c9",
-  "_spec": "2.1.6",
+  "_spec": "2.1.7",
   "author": {
     "name": "ImoucheG"
   },
@@ -31,15 +31,15 @@
     "@sailshq/lodash": "^3.10.4",
     "async": "3.2.0",
     "machine": "^15.2.2",
-    "machinepack-sqlserver-adapter": "1.1.4",
+    "machinepack-sqlserver-adapter": "1.1.6",
     "waterline-utils": "^1.4.3"
   },
   "deprecated": false,
   "description": "SQL Server adapter for Sails.js",
   "devDependencies": {
-    "benchmark": "2.1.6",
-    "eslint": "7.10.0",
-    "mocha": "8.1.3",
+    "benchmark": "2.1.7",
+    "eslint": "7.11.0",
+    "mocha": "8.2.0",
     "waterline-adapter-tests": "^1.0.1"
   },
   "homepage": "https://github.com/imoucheg/sails-sqlserver-v2#readme",
@@ -64,7 +64,7 @@
     "pretest": "nodever=`node -e \"console.log('\\`node -v\\`'[1]);\"` && if [ $nodever != \"0\" ]; then npm run lint; fi",
     "test": "node ./node_modules/mocha/bin/mocha test/adapter/unit --timeout 10000 --recursive && node test/adapter/integration/runner"
   },
-  "version": "2.1.6",
+  "version": "2.1.7",
   "waterlineAdapter": {
     "waterlineVersion": "^0.13.0",
     "interfaces": [

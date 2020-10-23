@@ -81,7 +81,7 @@ module.exports = require('machine').build({
     }
 
     // Compile the original Waterline Query
-    let compiledQuery = await Helpers.query.compileStatement(statement).catch(err => {
+    let compiledQuery = await Helpers.query.compileStatement(statement, query.meta).catch(err => {
       return exits.error(err);
     });
 

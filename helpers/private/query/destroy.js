@@ -60,7 +60,7 @@ module.exports = async function insertRecord(options, manager) {
     //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
     //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
     // Compile the statement into a native query.
-    let compiledFetchQuery = await compileStatement(fetchStatement).catch(e => {
+    let compiledFetchQuery = await compileStatement(fetchStatement, options.meta).catch(e => {
       return Promise.reject(e);
     });
 
