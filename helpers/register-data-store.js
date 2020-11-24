@@ -107,17 +107,13 @@ module.exports = require('machine').build({
     if (!_.has(inputs.config, 'url')) {
       inputs.config.port = inputs.config.port || '1433';
     }
-    delete inputs.config.port;
-    delete inputs.config.adapter;
-    delete inputs.config.identity;
 
     //  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐┬─┐
     //  ║  ╠╦╝║╣ ╠═╣ ║ ║╣   │││├─┤│││├─┤│ ┬├┤ ├┬┘
     //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘┴└─
     // Create a manager to handle the datastore connection config
-    let report;
     try {
-      const report = await Helpers.connection.createManager(inputs.config, inputs.config).catch(err => {
+      const report = await Helpers.connection.createManager(inputs.config).catch(err => {
         return exits.badConfiguration(err);
       });
       // Build up a database schema for this connection that can be used
