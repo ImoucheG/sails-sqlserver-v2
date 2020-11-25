@@ -43,7 +43,6 @@ module.exports = require('machine').build({
   },
   fn: async function join(inputs, exits) {
     const _ = require('@sailshq/lodash');
-    const async = require('async');
     const WLUtils = require('waterline-utils');
     const Helpers = require('./private');
 
@@ -239,7 +238,7 @@ module.exports = require('machine').build({
     //  ╩  ╩╚═╚═╝╚═╝╚═╝╚═╝╚═╝  └─┘┴ ┴┴┴─┘─┴┘  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴ └─┘
     // For each child statement, figure out how to turn the statement into
     // a native query and then run it. Add the results to the query cache.
-    async.each(statements.childStatements, async function processChildStatements(template, next) {
+    for (const template of statements.childStatements) {
       //  ╦═╗╔═╗╔╗╔╔╦╗╔═╗╦═╗  ┬┌┐┌  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
       //  ╠╦╝║╣ ║║║ ║║║╣ ╠╦╝  ││││  │─┼┐│ │├┤ ├┬┘└┬┘
       //  ╩╚═╚═╝╝╚╝═╩╝╚═╝╩╚═  ┴┘└┘  └─┘└└─┘└─┘┴└─ ┴
@@ -299,65 +298,51 @@ module.exports = require('machine').build({
       }
 
       // If there isn't a statement to be run, then just return
-      if (!template.statement) {
-        return next();
-      }
+      if (template.statement) {
 
 
-      //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┐┌┌┬┐
-      //  ║  ║ ║║║║╠═╝║║  ║╣   └─┐ │ ├─┤ │ ├┤ │││├┤ │││ │
-      //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴
-      // Attempt to convert the statement into a native query
-      let compiledQuery = await Helpers.query.compileStatement(template.statement, meta).catch(e => {
-        return next(e);
-      });
+        //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┐┌┌┬┐
+        //  ║  ║ ║║║║╠═╝║║  ║╣   └─┐ │ ├─┤ │ ├┤ │││├┤ │││ │
+        //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴
+        // Attempt to convert the statement into a native query
+        let compiledQuery = await Helpers.query.compileStatement(template.statement, meta).catch(e => {
+          console.error(e);
+        });
 
 
-      //  ╦═╗╦ ╦╔╗╔  ┌─┐┬ ┬┬┬  ┌┬┐  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-      //  ╠╦╝║ ║║║║  │  ├─┤││   ││  │─┼┐│ │├┤ ├┬┘└┬┘
-      //  ╩╚═╚═╝╝╚╝  └─┘┴ ┴┴┴─┘─┴┘  └─┘└└─┘└─┘┴└─ ┴
-      // Run the native query
-      let columns = Object.keys(template.statement.where);
-      if (template.statement.where.and) {
-        columns = [];
-        for (const column of template.statement.where.and) {
-          columns.push(Object.keys(column)[0]);
-        }
-      }
-      const queryResults = await Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager, compiledQuery.nativeQuery,
+        //  ╦═╗╦ ╦╔╗╔  ┌─┐┬ ┬┬┬  ┌┬┐  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+        //  ╠╦╝║ ║║║║  │  ├─┤││   ││  │─┼┐│ │├┤ ├┬┘└┬┘
+        //  ╩╚═╚═╝╝╚╝  └─┘┴ ┴┴┴─┘─┴┘  └─┘└└─┘└─┘┴└─ ┴
+        // Run the native query
+        let columns = await Helpers.query.getColumns(template.statement, compiledQuery);
+        const queryResults = await Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager, compiledQuery.nativeQuery,
           compiledQuery.valuesToEscape, {columns: columns, tableName: template.statement.from}, compiledQuery.meta).catch(err => {
-        return next(err);
-      });
+          console.error(err);
+        });
         // Extend the values in the cache to include the values from the
         // child query.
-      queryCache.extend(queryResults, template.instructions);
+        queryCache.extend(queryResults, template.instructions);
+      }
+    }
+    // Always release the connection unless a leased connection from outside
+    // the adapter was used.
+    await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
 
-      return next();
-    },
-      async function asyncEachCb(err) {
-        // Always release the connection unless a leased connection from outside
-        // the adapter was used.
-        await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
-        if (err) {
-          return exits.error(err);
-        }
+    // Combine records in the cache to form nested results
+    let combinedResults = queryCache.combineRecords();
 
-        // Combine records in the cache to form nested results
-        let combinedResults = queryCache.combineRecords();
+    // Process each record to normalize output
+    try {
+      Helpers.query.processEachRecord({
+        records: combinedResults,
+        identity: model.identity,
+        orm: orm
+      });
+    } catch (e) {
+      return exits.error(e);
+    }
 
-        // Process each record to normalize output
-        try {
-          Helpers.query.processEachRecord({
-            records: combinedResults,
-            identity: model.identity,
-            orm: orm
-          });
-        } catch (e) {
-          return exits.error(e);
-        }
-
-        // Return the combined results
-        return exits.success(combinedResults);
-      }); // </ spawnConnection >
+    // Return the combined results
+    return exits.success(combinedResults);
   }
 });
