@@ -53,8 +53,8 @@ module.exports = async function runNativeQuery(connection, manager, query, value
       }
 
       // Attach parsed error as footprint on the native query error
-      if (!_.has(report.error, 'footprint')) {
-        err.error.footprint = parsedError;
+      if (!_.has(err, 'footprint')) {
+        err.footprint = parsedError;
       }
 
       return Promise.reject(err.error);
