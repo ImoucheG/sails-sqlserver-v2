@@ -43,17 +43,6 @@ module.exports = async(options, manager) => {
   //  ╔═╗╔═╗╔╦╗  ┬─┐┌─┐┌─┐┌─┐┬─┐┌┬┐┌─┐  ┌┐ ┌─┐┬┌┐┌┌─┐  ┬ ┬┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐
   //  ║ ╦║╣  ║   ├┬┘├┤ │  │ │├┬┘ ││└─┐  ├┴┐├┤ │││││ ┬  │ │├─┘ ││├─┤ │ ├┤  ││
   //  ╚═╝╚═╝ ╩   ┴└─└─┘└─┘└─┘┴└──┴┘└─┘  └─┘└─┘┴┘└┘└─┘  └─┘┴  ─┴┘┴ ┴ ┴ └─┘─┴┘
-  // If a fetch is used, the records that will be updated need to be found first.
-  // This is because in order to (semi) accurately return the records that were
-  // updated in MySQL first they need to be found, then updated, then found again.
-  // Why? Because if you have a criteria such as update name to foo where name = bar
-  // Once the records have been updated there is no way to get them again. So first
-  // select the primary keys of the records to update, update the records, and then
-  // search for those records.
-  // Only look up the records if fetch was used
-  if (!options.fetch) {
-    return Promise.resolve();
-  }
   // Otherwise build up a select query
   let fetchStatementSelect = {
     select: [options.primaryKey],
