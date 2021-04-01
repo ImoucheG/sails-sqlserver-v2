@@ -67,8 +67,6 @@ module.exports = require('machine').build({
       return exits.invalidDatastore();
     }
 
-    // Set a flag if a leased connection from outside the adapter was used or not.
-    let leased = _.has(query.meta, 'leasedConnection');
 
     // Set a flag to determine if records are being returned
     let fetchRecords = false;
@@ -143,7 +141,7 @@ module.exports = require('machine').build({
     //  │ │├┬┘  │ │└─┐├┤   │  ├┤ ├─┤└─┐├┤  ││  │  │ │││││││├┤ │   │ ││ ││││
     //  └─┘┴└─  └─┘└─┘└─┘  ┴─┘└─┘┴ ┴└─┘└─┘─┴┘  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
     // Spawn a new connection for running queries on.
-    const reportConnection = await Helpers.connection.spawnOrLeaseConnection(inputs.datastore, query.meta).catch(err => {
+    const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
       return exits.badConnection(err);
     });
 
@@ -152,12 +150,14 @@ module.exports = require('machine').build({
     //  ╩╝╚╝╚═╝╚═╝╩╚═ ╩   ┴└─└─┘└─┘└─┘┴└──┴┘
     // Insert the record and return the new values
     const insertedRecords = await Helpers.query.create({
-      connection: reportConnection,
+      connection: reportConnection.connection,
+      pool: reportConnection.pool,
       manager: inputs.datastore.manager,
       statement: statement,
       fetch: fetchRecords,
       primaryKey: primaryKeyColumnName
     }, inputs.datastore.manager).catch(err => {
+
       if (err.footprint && err.footprint.identity === 'notUnique') {
         return exits.notUnique(err);
       }
@@ -166,11 +166,6 @@ module.exports = require('machine').build({
       }
       return exits.error(err);
     });
-    // Release the connection if needed.
-    await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased)
-      .catch(err => {
-        console.log(err);
-      });
 
     if (fetchRecords && insertedRecords) {
       // Process each record to normalize output
@@ -181,13 +176,15 @@ module.exports = require('machine').build({
           orm: fauxOrm
         });
       } catch (e) {
+
         return exits.error(e);
       }
-
       // Only return the first record (there should only ever be one)
       let insertedRecord = _.first(insertedRecords);
+
       return exits.success({record: insertedRecord});
     } else {
+
       if (insertedRecords) {
         return exits.success();
       }

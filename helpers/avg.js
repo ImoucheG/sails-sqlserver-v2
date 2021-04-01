@@ -97,7 +97,7 @@ module.exports = require('machine').build({
     //  │ │├┬┘  │ │└─┐├┤   │  ├┤ ├─┤└─┐├┤  ││  │  │ │││││││├┤ │   │ ││ ││││
     //  └─┘┴└─  └─┘└─┘└─┘  ┴─┘└─┘┴ ┴└─┘└─┘─┴┘  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
     // Spawn a new connection for running queries on.
-    const reportConnection = await Helpers.connection.spawnOrLeaseConnection(inputs.datastore, query.meta).catch(err => {
+    const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
       return exits.badConnection(err);
     });
 
@@ -106,19 +106,18 @@ module.exports = require('machine').build({
     //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
     let queryType = 'avg';
     const report = await Helpers.query.runQuery({
-      connection: reportConnection,
+      connection: reportConnection.connection,
+      pool: reportConnection.pool,
       nativeQuery: compiledQuery.nativeQuery,
       valuesToEscape: compiledQuery.valuesToEscape,
       meta: compiledQuery.meta,
       queryType: queryType,
       disconnectOnError: !leased
     }, inputs.datastore.manager).catch(err => {
+      
       return exits.error(err);
     });
-
-    // Always release the connection unless a leased connection from outside
-    // the adapter was used.
-    await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
+    
     return exits.success(report.result);
   }
 });

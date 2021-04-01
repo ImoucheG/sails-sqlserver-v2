@@ -48,8 +48,6 @@ module.exports = require('machine').build({
 
     let meta = _.has(inputs.query, 'meta') ? inputs.query.meta : {};
 
-    // Set a flag if a leased connection from outside the adapter was used or not.
-    let leased = _.has(meta, 'leasedConnection');
 
 
     //  ╔═╗╦╔╗╔╔╦╗  ┌┬┐┌─┐┌┐ ┬  ┌─┐  ┌─┐┬─┐┬┌┬┐┌─┐┬─┐┬ ┬  ┬┌─┌─┐┬ ┬
@@ -113,7 +111,7 @@ module.exports = require('machine').build({
     //  │ │├┬┘  │ │└─┐├┤   │  ├┤ ├─┤└─┐├┤  ││  │  │ │││││││├┤ │   │ ││ ││││
     //  └─┘┴└─  └─┘└─┘└─┘  ┴─┘└─┘┴ ┴└─┘└─┘─┴┘  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
     // Spawn a new connection for running queries on.
-    const reportConnection = await Helpers.connection.spawnOrLeaseConnection(inputs.datastore, meta).catch(err => {
+    const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
       return exits.error(err);
     });
 
@@ -126,17 +124,15 @@ module.exports = require('machine').build({
     const parentResults = await Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager,
       compiledQuery.nativeQuery, compiledQuery.valuesToEscape,
       {columns: columns, tableName: statements.parentStatement.from}, compiledQuery.meta).catch(async err => {
+
       // Release the connection on error
-      await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
       return exits.error(err);
     });
 
     // If there weren't any joins being performed or no parent records were
     // returned, release the connection and return the results.
     if (!_.has(inputs.query, 'joins') || !parentResults.length) {
-      await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased).catch(err => {
-        return exits.error(err);
-      });
+
       return exits.success(parentResults);
     }
 
@@ -151,8 +147,7 @@ module.exports = require('machine').build({
     try {
       sortedResults = WLUtils.joins.detectChildrenRecords(primaryKeyColumnName, parentResults);
     } catch (e) {
-      // Release the connection if there was an error.
-      await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
+
       return exits.error(e);
     }
 
@@ -168,8 +163,7 @@ module.exports = require('machine').build({
         sortedResults: sortedResults
       });
     } catch (e) {
-      // Release the connection if there was an error.
-      await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
+
       return exits.error(e);
     }
 
@@ -180,8 +174,7 @@ module.exports = require('machine').build({
     try {
       queryCache.setParents(sortedResults.parents);
     } catch (e) {
-      // Release the connection if there was an error.
-      await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
+
       return exits.error(e);
     }
 
@@ -196,12 +189,12 @@ module.exports = require('machine').build({
     // statements that need to be processed. If not, close the connection and
     // return the combined results.
     if (!statements.childStatements || !statements.childStatements.length) {
-      await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
       // Combine records in the cache to form nested results
       let combinedResults;
       try {
         combinedResults = queryCache.combineRecords();
       } catch (e) {
+
         return exits.error(e);
       }
 
@@ -213,8 +206,10 @@ module.exports = require('machine').build({
           orm: orm
         });
       } catch (e) {
+
         return exits.error(e);
       }
+
       // Return the combined results
       return exits.success(combinedResults);
     }
@@ -229,6 +224,7 @@ module.exports = require('machine').build({
     // There is more work to be done now. Go through the parent records and
     // build up an array of the primary keys.
     let parentKeys = _.map(queryCache.getParents(), function pluckPk(record) {
+
       return record[primaryKeyColumnName];
     });
 
@@ -306,6 +302,7 @@ module.exports = require('machine').build({
         //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴
         // Attempt to convert the statement into a native query
         let compiledQuery = await Helpers.query.compileStatement(template.statement, meta).catch(e => {
+
           console.error(e);
         });
 
@@ -317,6 +314,7 @@ module.exports = require('machine').build({
         let columns = await Helpers.query.getColumns(template.statement, compiledQuery);
         const queryResults = await Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager, compiledQuery.nativeQuery,
           compiledQuery.valuesToEscape, {columns: columns, tableName: template.statement.from}, compiledQuery.meta).catch(err => {
+
           console.error(err);
         });
         // Extend the values in the cache to include the values from the
@@ -324,9 +322,6 @@ module.exports = require('machine').build({
         queryCache.extend(queryResults, template.instructions);
       }
     }
-    // Always release the connection unless a leased connection from outside
-    // the adapter was used.
-    await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
 
     // Combine records in the cache to form nested results
     let combinedResults = queryCache.combineRecords();
@@ -341,7 +336,6 @@ module.exports = require('machine').build({
     } catch (e) {
       return exits.error(e);
     }
-
     // Return the combined results
     return exits.success(combinedResults);
   }

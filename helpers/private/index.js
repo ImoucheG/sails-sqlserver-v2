@@ -3,9 +3,8 @@ module.exports = {
   connection: {
     createManager: require('./connection/create-manager'),
     destroyManager: require('./connection/destroy-manager'),
-    releaseConnection: require('./connection/release-connection'),
-    spawnConnection: require('./connection/spawn-connection'),
-    spawnOrLeaseConnection: require('./connection/spawn-or-lease-connection')
+    spawnPool: require('./connection/spawn-pool'),
+    releaseConnection: require('./connection/release-connection')
   },
 
   // Helpers for handling query logic

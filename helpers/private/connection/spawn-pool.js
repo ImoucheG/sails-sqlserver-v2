@@ -26,5 +26,5 @@ module.exports = async function spawnConnection(datastore) {
   }).catch(err => {
     return Promise.reject(err);
   });
-  return Promise.resolve(reportConnection.connection);
+  return Promise.resolve({connection: reportConnection.connection});
 };

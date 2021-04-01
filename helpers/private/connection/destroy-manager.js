@@ -17,6 +17,9 @@
 const MSSQL = require('machinepack-sqlserver-adapter');
 
 module.exports = async function destroyManager(manager) {
+  for (const pool of manager.pools) {
+    pool.close();
+  }
   await MSSQL.destroyManager({
     manager: manager
   }).catch(err => {

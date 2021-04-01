@@ -64,9 +64,6 @@ module.exports = require('machine').build({
     }
 
 
-    // Set a flag if a leased connection from outside the adapter was used or not.
-    var leased = _.has(query.meta, 'leasedConnection');
-
     // Set a flag to determine if records are being returned
     let fetchRecords = false;
 
@@ -114,7 +111,7 @@ module.exports = require('machine').build({
     //  │ │├┬┘  │ │└─┐├┤   │  ├┤ ├─┤└─┐├┤  ││  │  │ │││││││├┤ │   │ ││ ││││
     //  └─┘┴└─  └─┘└─┘└─┘  ┴─┘└─┘┴ ┴└─┘└─┘─┴┘  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
     // Spawn a new connection for running queries on.
-    const reportConnection = await Helpers.connection.spawnOrLeaseConnection(inputs.datastore, query.meta).catch(err => {
+    const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
       return exits.badConnection(err);
     });
 
@@ -123,16 +120,16 @@ module.exports = require('machine').build({
     //  ╠╦╝║ ║║║║   ││├┤ └─┐ │ ├┬┘│ │└┬┘  │─┼┐│ │├┤ ├┬┘└┬┘
     //  ╩╚═╚═╝╝╚╝  ─┴┘└─┘└─┘ ┴ ┴└─└─┘ ┴   └─┘└└─┘└─┘┴└─ ┴
     const destroyedRecords = await Helpers.query.destroy({
-      connection: reportConnection,
+      connection: reportConnection.connection,
+      pool: reportConnection.pool,
       statement: statement,
       fetch: fetchRecords,
       primaryKey: primaryKeyColumnName
     }, inputs.datastore.manager).catch(err => {
+
       return exits.error(err);
     });
-    // Always release the connection unless a leased connection from outside
-    // the adapter was used.
-    await Helpers.connection.releaseConnection(reportConnection, inputs.datastore.manager, leased);
+
     if (fetchRecords) {
       let orm = {
         collections: inputs.models

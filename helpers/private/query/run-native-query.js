@@ -17,9 +17,9 @@
 const _ = require('@sailshq/lodash');
 const SQLSERVER = require('machinepack-sqlserver-adapter');
 
-module.exports = async function runNativeQuery(connection, manager, query, valuesToEscape, statement, meta) {
+module.exports = async function runNativeQuery(reportConnection, manager, query, valuesToEscape, statement, meta) {
   const report = await SQLSERVER.sendNativeQuery({
-    connection: connection,
+    connection: reportConnection.connection,
     manager: manager,
     statement: statement,
     nativeQuery: query,
@@ -60,5 +60,8 @@ module.exports = async function runNativeQuery(connection, manager, query, value
       return Promise.reject(err.error);
     }
   });
+
+  const Helpers = require('../../private');
+  Helpers.connection.releaseConnection(manager, reportConnection.connection);
   return Promise.resolve(report.result.rows);
 };

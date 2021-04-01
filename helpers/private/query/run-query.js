@@ -9,7 +9,6 @@
 
 const _ = require('@sailshq/lodash');
 const SQLSERVER = require('machinepack-sqlserver-adapter');
-const releaseConnection = require('../connection/release-connection');
 
 module.exports = async function runQuery(options, manager) {
   //  ╦  ╦╔═╗╦  ╦╔╦╗╔═╗╔╦╗╔═╗  ┌─┐┌─┐┌┬┐┬┌─┐┌┐┌┌─┐
@@ -42,9 +41,6 @@ module.exports = async function runQuery(options, manager) {
       if (!options.disconnectOnError) {
         return Promise.reject(err);
       }
-      await releaseConnection(options.connection, manager, options.leased).catch(err1 => {
-        return Promise.reject(err1);
-      });
     }
     // If the query failed, try and parse it into a normalized format and
     // release the connection if needed.
@@ -57,7 +53,6 @@ module.exports = async function runQuery(options, manager) {
         if (!options.disconnectOnError) {
           return Promise.reject(e);
         }
-        await releaseConnection(options.connection, manager, options.leased);
         return Promise.resolve();
       });
       return Promise.reject(parsedError);
@@ -78,12 +73,6 @@ module.exports = async function runQuery(options, manager) {
       }
       return Promise.reject(parsedError);
     }
-    await releaseConnection(options.connection, manager, false).catch(reportError => {
-      if (catchAllError) {
-        return Promise.reject(reportError.error);
-      }
-      return Promise.reject(parsedError);
-    });
   });
   // If a custom primary key was used and the record has an `insert` query
   // type, build a manual insert report because we don't have the actual
