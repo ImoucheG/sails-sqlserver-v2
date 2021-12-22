@@ -39,6 +39,10 @@ module.exports = require('machine').build({
     queryFailed: {
       friendlyName: 'Not can execute or prepare a query',
       outputType: 'ref'
+    },
+    error: {
+      friendlyName: 'Not can execute or prepare a query',
+      outputType: 'ref'
     }
   },
   fn: async function join(inputs, exits) {
@@ -124,79 +128,212 @@ module.exports = require('machine').build({
     const parentResults = await Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager,
       compiledQuery.nativeQuery, compiledQuery.valuesToEscape,
       {columns: columns, tableName: statements.parentStatement.from}, compiledQuery.meta).catch(async err => {
-
+      if (err.exit === 'queryFailed') {
+        return exits.queryFailed(err);
+      }
       // Release the connection on error
       return exits.error(err);
     });
+    if (parentResults) {
+      // If there weren't any joins being performed or no parent records were
+      // returned, release the connection and return the results.
+      if (!_.has(inputs.query, 'joins') || !parentResults.length) {
 
-    // If there weren't any joins being performed or no parent records were
-    // returned, release the connection and return the results.
-    if (!_.has(inputs.query, 'joins') || !parentResults.length) {
-
-      return exits.success(parentResults);
-    }
-
-
-    //  ╔═╗╦╔╗╔╔╦╗  ┌─┐┬ ┬┬┬  ┌┬┐┬─┐┌─┐┌┐┌  ┬─┐┌─┐┌─┐┌─┐┬─┐┌┬┐┌─┐
-    //  ╠╣ ║║║║ ║║  │  ├─┤││   ││├┬┘├┤ │││  ├┬┘├┤ │  │ │├┬┘ ││└─┐
-    //  ╚  ╩╝╚╝═╩╝  └─┘┴ ┴┴┴─┘─┴┘┴└─└─┘┘└┘  ┴└─└─┘└─┘└─┘┴└──┴┘└─┘
-    // If there was a join that was either performed or still needs to be
-    // performed, look into the results for any children records that may
-    // have been joined and splt them out from the parent.
-    let sortedResults;
-    try {
-      sortedResults = WLUtils.joins.detectChildrenRecords(primaryKeyColumnName, parentResults);
-    } catch (e) {
-
-      return exits.error(e);
-    }
+        return exits.success(parentResults);
+      }
 
 
-    //  ╦╔╗╔╦╔╦╗╦╔═╗╦  ╦╔═╗╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬  ┌─┐┌─┐┌─┐┬ ┬┌─┐
-    //  ║║║║║ ║ ║╠═╣║  ║╔═╝║╣   │─┼┐│ │├┤ ├┬┘└┬┘  │  ├─┤│  ├─┤├┤
-    //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝╩╚═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴   └─┘┴ ┴└─┘┴ ┴└─┘
-    let queryCache;
-    try {
-      queryCache = Helpers.query.initializeQueryCache({
-        instructions: statements.instructions,
-        models: inputs.models,
-        sortedResults: sortedResults
-      });
-    } catch (e) {
-
-      return exits.error(e);
-    }
-
-
-    //  ╔═╗╔╦╗╔═╗╦═╗╔═╗  ┌─┐┌─┐┬─┐┌─┐┌┐┌┌┬┐┌─┐
-    //  ╚═╗ ║ ║ ║╠╦╝║╣   ├─┘├─┤├┬┘├┤ │││ │ └─┐
-    //  ╚═╝ ╩ ╚═╝╩╚═╚═╝  ┴  ┴ ┴┴└─└─┘┘└┘ ┴ └─┘
-    try {
-      queryCache.setParents(sortedResults.parents);
-    } catch (e) {
-
-      return exits.error(e);
-    }
-
-
-    //  ╔═╗╦ ╦╔═╗╔═╗╦╔═  ┌─┐┌─┐┬─┐  ┌─┐┬ ┬┬┬  ┌┬┐┬─┐┌─┐┌┐┌
-    //  ║  ╠═╣║╣ ║  ╠╩╗  ├┤ │ │├┬┘  │  ├─┤││   ││├┬┘├┤ │││
-    //  ╚═╝╩ ╩╚═╝╚═╝╩ ╩  └  └─┘┴└─  └─┘┴ ┴┴┴─┘─┴┘┴└─└─┘┘└┘
-    //  ┌─┐ ┬ ┬┌─┐┬─┐┬┌─┐┌─┐
-    //  │─┼┐│ │├┤ ├┬┘│├┤ └─┐
-    //  └─┘└└─┘└─┘┴└─┴└─┘└─┘
-    // Now that all the parents are found, check if there are any child
-    // statements that need to be processed. If not, close the connection and
-    // return the combined results.
-    if (!statements.childStatements || !statements.childStatements.length) {
-      // Combine records in the cache to form nested results
-      let combinedResults;
+      //  ╔═╗╦╔╗╔╔╦╗  ┌─┐┬ ┬┬┬  ┌┬┐┬─┐┌─┐┌┐┌  ┬─┐┌─┐┌─┐┌─┐┬─┐┌┬┐┌─┐
+      //  ╠╣ ║║║║ ║║  │  ├─┤││   ││├┬┘├┤ │││  ├┬┘├┤ │  │ │├┬┘ ││└─┐
+      //  ╚  ╩╝╚╝═╩╝  └─┘┴ ┴┴┴─┘─┴┘┴└─└─┘┘└┘  ┴└─└─┘└─┘└─┘┴└──┴┘└─┘
+      // If there was a join that was either performed or still needs to be
+      // performed, look into the results for any children records that may
+      // have been joined and splt them out from the parent.
+      let sortedResults;
       try {
-        combinedResults = queryCache.combineRecords();
+        sortedResults = WLUtils.joins.detectChildrenRecords(primaryKeyColumnName, parentResults);
       } catch (e) {
 
         return exits.error(e);
       }
+
+
+      //  ╦╔╗╔╦╔╦╗╦╔═╗╦  ╦╔═╗╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬  ┌─┐┌─┐┌─┐┬ ┬┌─┐
+      //  ║║║║║ ║ ║╠═╣║  ║╔═╝║╣   │─┼┐│ │├┤ ├┬┘└┬┘  │  ├─┤│  ├─┤├┤
+      //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝╩╚═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴   └─┘┴ ┴└─┘┴ ┴└─┘
+      let queryCache;
+      try {
+        queryCache = Helpers.query.initializeQueryCache({
+          instructions: statements.instructions,
+          models: inputs.models,
+          sortedResults: sortedResults
+        });
+      } catch (e) {
+
+        return exits.error(e);
+      }
+
+
+      //  ╔═╗╔╦╗╔═╗╦═╗╔═╗  ┌─┐┌─┐┬─┐┌─┐┌┐┌┌┬┐┌─┐
+      //  ╚═╗ ║ ║ ║╠╦╝║╣   ├─┘├─┤├┬┘├┤ │││ │ └─┐
+      //  ╚═╝ ╩ ╚═╝╩╚═╚═╝  ┴  ┴ ┴┴└─└─┘┘└┘ ┴ └─┘
+      try {
+        queryCache.setParents(sortedResults.parents);
+      } catch (e) {
+
+        return exits.error(e);
+      }
+
+
+      //  ╔═╗╦ ╦╔═╗╔═╗╦╔═  ┌─┐┌─┐┬─┐  ┌─┐┬ ┬┬┬  ┌┬┐┬─┐┌─┐┌┐┌
+      //  ║  ╠═╣║╣ ║  ╠╩╗  ├┤ │ │├┬┘  │  ├─┤││   ││├┬┘├┤ │││
+      //  ╚═╝╩ ╩╚═╝╚═╝╩ ╩  └  └─┘┴└─  └─┘┴ ┴┴┴─┘─┴┘┴└─└─┘┘└┘
+      //  ┌─┐ ┬ ┬┌─┐┬─┐┬┌─┐┌─┐
+      //  │─┼┐│ │├┤ ├┬┘│├┤ └─┐
+      //  └─┘└└─┘└─┘┴└─┴└─┘└─┘
+      // Now that all the parents are found, check if there are any child
+      // statements that need to be processed. If not, close the connection and
+      // return the combined results.
+      if (!statements.childStatements || !statements.childStatements.length) {
+        // Combine records in the cache to form nested results
+        let combinedResults;
+        try {
+          combinedResults = queryCache.combineRecords();
+        } catch (e) {
+
+          return exits.error(e);
+        }
+
+        // Process each record to normalize output
+        try {
+          Helpers.query.processEachRecord({
+            records: combinedResults,
+            identity: model.identity,
+            orm: orm
+          });
+        } catch (e) {
+
+          return exits.error(e);
+        }
+
+        // Return the combined results
+        return exits.success(combinedResults);
+      }
+
+
+      //  ╔═╗╔═╗╦  ╦  ╔═╗╔═╗╔╦╗  ┌─┐┌─┐┬─┐┌─┐┌┐┌┌┬┐
+      //  ║  ║ ║║  ║  ║╣ ║   ║   ├─┘├─┤├┬┘├┤ │││ │
+      //  ╚═╝╚═╝╩═╝╩═╝╚═╝╚═╝ ╩   ┴  ┴ ┴┴└─└─┘┘└┘ ┴
+      //  ┬─┐┌─┐┌─┐┌─┐┬─┐┌┬┐┌─┐
+      //  ├┬┘├┤ │  │ │├┬┘ ││└─┐
+      //  ┴└─└─┘└─┘└─┘┴└──┴┘└─┘
+      // There is more work to be done now. Go through the parent records and
+      // build up an array of the primary keys.
+      let parentKeys = _.map(queryCache.getParents(), function pluckPk(record) {
+
+        return record[primaryKeyColumnName];
+      });
+
+
+      //  ╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ┌─┐┬ ┬┬┬  ┌┬┐  ┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┐┌┌┬┐┌─┐
+      //  ╠═╝╠╦╝║ ║║  ║╣ ╚═╗╚═╗  │  ├─┤││   ││  └─┐ │ ├─┤ │ ├┤ │││├┤ │││ │ └─┐
+      //  ╩  ╩╚═╚═╝╚═╝╚═╝╚═╝╚═╝  └─┘┴ ┴┴┴─┘─┴┘  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴ └─┘
+      // For each child statement, figure out how to turn the statement into
+      // a native query and then run it. Add the results to the query cache.
+      for (const template of statements.childStatements) {
+        //  ╦═╗╔═╗╔╗╔╔╦╗╔═╗╦═╗  ┬┌┐┌  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+        //  ╠╦╝║╣ ║║║ ║║║╣ ╠╦╝  ││││  │─┼┐│ │├┤ ├┬┘└┬┘
+        //  ╩╚═╚═╝╝╚╝═╩╝╚═╝╩╚═  ┴┘└┘  └─┘└└─┘└─┘┴└─ ┴
+        //  ┌┬┐┌─┐┌┬┐┌─┐┬  ┌─┐┌┬┐┌─┐
+        //   │ ├┤ │││├─┘│  ├─┤ │ ├┤
+        //   ┴ └─┘┴ ┴┴  ┴─┘┴ ┴ ┴ └─┘
+        // If the statement is an IN query, replace the values with the parent
+        // keys.
+        if (template.queryType === 'in') {
+          // Pull the last AND clause out - it's the one we added
+          let inClause = _.pullAt(template.statement.where.and, template.statement.where.and.length - 1);
+
+          // Grab the object inside the array that comes back
+          inClause = _.first(inClause);
+
+          // Modify the inClause using the actual parent key values
+          _.each(inClause, function modifyInClause(val) {
+            val.in = parentKeys;
+          });
+
+          // Reset the statement
+          template.statement.where.and.push(inClause);
+        }
+
+
+        //  ╦═╗╔═╗╔╗╔╔╦╗╔═╗╦═╗  ┬ ┬┌┐┌┬┌─┐┌┐┌  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+        //  ╠╦╝║╣ ║║║ ║║║╣ ╠╦╝  │ ││││││ ││││  │─┼┐│ │├┤ ├┬┘└┬┘
+        //  ╩╚═╚═╝╝╚╝═╩╝╚═╝╩╚═  └─┘┘└┘┴└─┘┘└┘  └─┘└└─┘└─┘┴└─ ┴
+        //  ┌┬┐┌─┐┌┬┐┌─┐┬  ┌─┐┌┬┐┌─┐
+        //   │ ├┤ │││├─┘│  ├─┤ │ ├┤
+        //   ┴ └─┘┴ ┴┴  ┴─┘┴ ┴ ┴ └─┘
+        // If the statement is a UNION type, loop through each parent key and
+        // build up a proper query.
+        if (template.queryType === 'union') {
+          let unionStatements = [];
+
+          // Build up an array of generated statements
+          _.each(parentKeys, function buildUnion(parentPk) {
+            let unionStatement = _.merge({}, template.statement);
+
+            // Replace the placeholder `?` values with the primary key of the
+            // parent record.
+            let andClause = _.pullAt(unionStatement.where.and, unionStatement.where.and.length - 1);
+            _.each(_.first(andClause), function replaceValue(val, key) {
+              _.first(andClause)[key] = parentPk;
+            });
+
+            // Add the UNION statement to the array of other statements
+            unionStatement.where.and.push(_.first(andClause));
+            unionStatements.push(unionStatement);
+          });
+
+          // Replace the final statement with the UNION ALL clause
+          if (unionStatements.length) {
+            template.statement = {unionAll: unionStatements};
+          }
+        }
+
+        // If there isn't a statement to be run, then just return
+        if (template.statement) {
+
+
+          //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┐┌┌┬┐
+          //  ║  ║ ║║║║╠═╝║║  ║╣   └─┐ │ ├─┤ │ ├┤ │││├┤ │││ │
+          //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴
+          // Attempt to convert the statement into a native query
+          let compiledQuery = await Helpers.query.compileStatement(template.statement, meta).catch(e => {
+
+            console.error(e);
+          });
+
+
+          //  ╦═╗╦ ╦╔╗╔  ┌─┐┬ ┬┬┬  ┌┬┐  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
+          //  ╠╦╝║ ║║║║  │  ├─┤││   ││  │─┼┐│ │├┤ ├┬┘└┬┘
+          //  ╩╚═╚═╝╝╚╝  └─┘┴ ┴┴┴─┘─┴┘  └─┘└└─┘└─┘┴└─ ┴
+          // Run the native query
+          let columns = await Helpers.query.getColumns(template.statement, compiledQuery);
+          const queryResults = await Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager, compiledQuery.nativeQuery,
+            compiledQuery.valuesToEscape, {
+              columns: columns,
+              tableName: template.statement.from
+            }, compiledQuery.meta).catch(err => {
+
+            console.error(err);
+          });
+          // Extend the values in the cache to include the values from the
+          // child query.
+          queryCache.extend(queryResults, template.instructions);
+        }
+      }
+
+      // Combine records in the cache to form nested results
+      let combinedResults = queryCache.combineRecords();
 
       // Process each record to normalize output
       try {
@@ -206,137 +343,10 @@ module.exports = require('machine').build({
           orm: orm
         });
       } catch (e) {
-
         return exits.error(e);
       }
-
       // Return the combined results
       return exits.success(combinedResults);
     }
-
-
-    //  ╔═╗╔═╗╦  ╦  ╔═╗╔═╗╔╦╗  ┌─┐┌─┐┬─┐┌─┐┌┐┌┌┬┐
-    //  ║  ║ ║║  ║  ║╣ ║   ║   ├─┘├─┤├┬┘├┤ │││ │
-    //  ╚═╝╚═╝╩═╝╩═╝╚═╝╚═╝ ╩   ┴  ┴ ┴┴└─└─┘┘└┘ ┴
-    //  ┬─┐┌─┐┌─┐┌─┐┬─┐┌┬┐┌─┐
-    //  ├┬┘├┤ │  │ │├┬┘ ││└─┐
-    //  ┴└─└─┘└─┘└─┘┴└──┴┘└─┘
-    // There is more work to be done now. Go through the parent records and
-    // build up an array of the primary keys.
-    let parentKeys = _.map(queryCache.getParents(), function pluckPk(record) {
-
-      return record[primaryKeyColumnName];
-    });
-
-
-    //  ╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ┌─┐┬ ┬┬┬  ┌┬┐  ┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┐┌┌┬┐┌─┐
-    //  ╠═╝╠╦╝║ ║║  ║╣ ╚═╗╚═╗  │  ├─┤││   ││  └─┐ │ ├─┤ │ ├┤ │││├┤ │││ │ └─┐
-    //  ╩  ╩╚═╚═╝╚═╝╚═╝╚═╝╚═╝  └─┘┴ ┴┴┴─┘─┴┘  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴ └─┘
-    // For each child statement, figure out how to turn the statement into
-    // a native query and then run it. Add the results to the query cache.
-    for (const template of statements.childStatements) {
-      //  ╦═╗╔═╗╔╗╔╔╦╗╔═╗╦═╗  ┬┌┐┌  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-      //  ╠╦╝║╣ ║║║ ║║║╣ ╠╦╝  ││││  │─┼┐│ │├┤ ├┬┘└┬┘
-      //  ╩╚═╚═╝╝╚╝═╩╝╚═╝╩╚═  ┴┘└┘  └─┘└└─┘└─┘┴└─ ┴
-      //  ┌┬┐┌─┐┌┬┐┌─┐┬  ┌─┐┌┬┐┌─┐
-      //   │ ├┤ │││├─┘│  ├─┤ │ ├┤
-      //   ┴ └─┘┴ ┴┴  ┴─┘┴ ┴ ┴ └─┘
-      // If the statement is an IN query, replace the values with the parent
-      // keys.
-      if (template.queryType === 'in') {
-        // Pull the last AND clause out - it's the one we added
-        let inClause = _.pullAt(template.statement.where.and, template.statement.where.and.length - 1);
-
-        // Grab the object inside the array that comes back
-        inClause = _.first(inClause);
-
-        // Modify the inClause using the actual parent key values
-        _.each(inClause, function modifyInClause(val) {
-          val.in = parentKeys;
-        });
-
-        // Reset the statement
-        template.statement.where.and.push(inClause);
-      }
-
-
-      //  ╦═╗╔═╗╔╗╔╔╦╗╔═╗╦═╗  ┬ ┬┌┐┌┬┌─┐┌┐┌  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-      //  ╠╦╝║╣ ║║║ ║║║╣ ╠╦╝  │ ││││││ ││││  │─┼┐│ │├┤ ├┬┘└┬┘
-      //  ╩╚═╚═╝╝╚╝═╩╝╚═╝╩╚═  └─┘┘└┘┴└─┘┘└┘  └─┘└└─┘└─┘┴└─ ┴
-      //  ┌┬┐┌─┐┌┬┐┌─┐┬  ┌─┐┌┬┐┌─┐
-      //   │ ├┤ │││├─┘│  ├─┤ │ ├┤
-      //   ┴ └─┘┴ ┴┴  ┴─┘┴ ┴ ┴ └─┘
-      // If the statement is a UNION type, loop through each parent key and
-      // build up a proper query.
-      if (template.queryType === 'union') {
-        let unionStatements = [];
-
-        // Build up an array of generated statements
-        _.each(parentKeys, function buildUnion(parentPk) {
-          let unionStatement = _.merge({}, template.statement);
-
-          // Replace the placeholder `?` values with the primary key of the
-          // parent record.
-          let andClause = _.pullAt(unionStatement.where.and, unionStatement.where.and.length - 1);
-          _.each(_.first(andClause), function replaceValue(val, key) {
-            _.first(andClause)[key] = parentPk;
-          });
-
-          // Add the UNION statement to the array of other statements
-          unionStatement.where.and.push(_.first(andClause));
-          unionStatements.push(unionStatement);
-        });
-
-        // Replace the final statement with the UNION ALL clause
-        if (unionStatements.length) {
-          template.statement = {unionAll: unionStatements};
-        }
-      }
-
-      // If there isn't a statement to be run, then just return
-      if (template.statement) {
-
-
-        //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┐┌┌┬┐
-        //  ║  ║ ║║║║╠═╝║║  ║╣   └─┐ │ ├─┤ │ ├┤ │││├┤ │││ │
-        //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴
-        // Attempt to convert the statement into a native query
-        let compiledQuery = await Helpers.query.compileStatement(template.statement, meta).catch(e => {
-
-          console.error(e);
-        });
-
-
-        //  ╦═╗╦ ╦╔╗╔  ┌─┐┬ ┬┬┬  ┌┬┐  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-        //  ╠╦╝║ ║║║║  │  ├─┤││   ││  │─┼┐│ │├┤ ├┬┘└┬┘
-        //  ╩╚═╚═╝╝╚╝  └─┘┴ ┴┴┴─┘─┴┘  └─┘└└─┘└─┘┴└─ ┴
-        // Run the native query
-        let columns = await Helpers.query.getColumns(template.statement, compiledQuery);
-        const queryResults = await Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager, compiledQuery.nativeQuery,
-          compiledQuery.valuesToEscape, {columns: columns, tableName: template.statement.from}, compiledQuery.meta).catch(err => {
-
-          console.error(err);
-        });
-        // Extend the values in the cache to include the values from the
-        // child query.
-        queryCache.extend(queryResults, template.instructions);
-      }
-    }
-
-    // Combine records in the cache to form nested results
-    let combinedResults = queryCache.combineRecords();
-
-    // Process each record to normalize output
-    try {
-      Helpers.query.processEachRecord({
-        records: combinedResults,
-        identity: model.identity,
-        orm: orm
-      });
-    } catch (e) {
-      return exits.error(e);
-    }
-    // Return the combined results
-    return exits.success(combinedResults);
   }
 });

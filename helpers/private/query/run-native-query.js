@@ -1,22 +1,4 @@
-//  ██████╗ ██╗   ██╗███╗   ██╗    ███╗   ██╗ █████╗ ████████╗██╗██╗   ██╗███████╗
-//  ██╔══██╗██║   ██║████╗  ██║    ████╗  ██║██╔══██╗╚══██╔══╝██║██║   ██║██╔════╝
-//  ██████╔╝██║   ██║██╔██╗ ██║    ██╔██╗ ██║███████║   ██║   ██║██║   ██║█████╗
-//  ██╔══██╗██║   ██║██║╚██╗██║    ██║╚██╗██║██╔══██║   ██║   ██║╚██╗ ██╔╝██╔══╝
-//  ██║  ██║╚██████╔╝██║ ╚████║    ██║ ╚████║██║  ██║   ██║   ██║ ╚████╔╝ ███████╗
-//  ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝    ╚═╝  ╚═══╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═══╝  ╚══════╝
-//
-//   ██████╗ ██╗   ██╗███████╗██████╗ ██╗   ██╗
-//  ██╔═══██╗██║   ██║██╔════╝██╔══██╗╚██╗ ██╔╝
-//  ██║   ██║██║   ██║█████╗  ██████╔╝ ╚████╔╝
-//  ██║▄▄ ██║██║   ██║██╔══╝  ██╔══██╗  ╚██╔╝
-//  ╚██████╔╝╚██████╔╝███████╗██║  ██║   ██║
-//   ╚══▀▀═╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝
-//
-// Run a native SQL query on an open connection and return the raw results.
-
-const _ = require('@sailshq/lodash');
 const SQLSERVER = require('machinepack-sqlserver-adapter');
-
 module.exports = async function runNativeQuery(reportConnection, manager, query, valuesToEscape, statement, meta) {
   const report = await SQLSERVER.sendNativeQuery({
     connection: reportConnection.connection,
@@ -53,11 +35,11 @@ module.exports = async function runNativeQuery(reportConnection, manager, query,
       }
 
       // Attach parsed error as footprint on the native query error
-      if (!_.has(err, 'footprint')) {
+      if (parsedError.footprint) {
         err.footprint = parsedError;
       }
 
-      return Promise.reject(err.error);
+      return Promise.reject(err);
     }
   });
 
