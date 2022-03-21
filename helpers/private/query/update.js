@@ -1,24 +1,9 @@
-//  ██╗   ██╗██████╗ ██████╗  █████╗ ████████╗███████╗
-//  ██║   ██║██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██╔════╝
-//  ██║   ██║██████╔╝██║  ██║███████║   ██║   █████╗
-//  ██║   ██║██╔═══╝ ██║  ██║██╔══██║   ██║   ██╔══╝
-//  ╚██████╔╝██║     ██████╔╝██║  ██║   ██║   ███████╗
-//   ╚═════╝ ╚═╝     ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝
-//
-// Modify the record(s) and return the values that were modified if needed.
-// If a fetch was performed, first the records need to be searched for with the
-// primary key selected.
-
 const _ = require('@sailshq/lodash');
 const runQuery = require('./run-query');
 const compileStatement = require('./compile-statement');
 const getColumns = require('./get-columns');
 
-
 module.exports = async(options, manager) => {
-  //  ╦  ╦╔═╗╦  ╦╔╦╗╔═╗╔╦╗╔═╗  ┌─┐┌─┐┌┬┐┬┌─┐┌┐┌┌─┐
-  //  ╚╗╔╝╠═╣║  ║ ║║╠═╣ ║ ║╣   │ │├─┘ │ ││ ││││└─┐
-  //   ╚╝ ╩ ╩╩═╝╩═╩╝╩ ╩ ╩ ╚═╝  └─┘┴   ┴ ┴└─┘┘└┘└─┘
   if (_.isUndefined(options) || !_.isPlainObject(options)) {
     return Promise.reject(new Error('Invalid options argument. Options must contain: connection, statement, fetch, and primaryKey.'));
   }
@@ -39,29 +24,15 @@ module.exports = async(options, manager) => {
     return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid fetch flag.'));
   }
 
-
-  //  ╔═╗╔═╗╔╦╗  ┬─┐┌─┐┌─┐┌─┐┬─┐┌┬┐┌─┐  ┌┐ ┌─┐┬┌┐┌┌─┐  ┬ ┬┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐
-  //  ║ ╦║╣  ║   ├┬┘├┤ │  │ │├┬┘ ││└─┐  ├┴┐├┤ │││││ ┬  │ │├─┘ ││├─┤ │ ├┤  ││
-  //  ╚═╝╚═╝ ╩   ┴└─└─┘└─┘└─┘┴└──┴┘└─┘  └─┘└─┘┴┘└┘└─┘  └─┘┴  ─┴┘┴ ┴ ┴ └─┘─┴┘
-  // Otherwise build up a select query
   let fetchStatementSelect = {
     select: [options.primaryKey],
     from: options.statement.using,
     where: options.statement.where
   };
 
-  //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-  //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
-  //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
-  // Compile the statement into a native query.
   let compiledFetchSelectQuery = await compileStatement(fetchStatementSelect, options.meta).catch(e => {
     return Promise.reject(e);
   });
-
-  //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-  //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
-  //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
-  // Run the initial find query
 
   const columnsSelect = await getColumns(fetchStatementSelect, compiledFetchSelectQuery, 'select');
   const selectReport = await runQuery({
@@ -76,10 +47,6 @@ module.exports = async(options, manager) => {
     return Promise.reject(err);
   });
   if (selectReport.result.length > 0) {
-    //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-    //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
-    //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
-    // Compile the update statement into a native query.
     let compiledUpdateQuery = await compileStatement(options.statement).catch(e => {
       return Promise.reject(e);
     });
@@ -89,11 +56,6 @@ module.exports = async(options, manager) => {
       compiledUpdateQuery.valuesToEscape.unshift(top);
       compiledUpdateQuery.valuesToEscape.pop();
     }
-
-    //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-    //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
-    //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
-    // Run the initial query
     let columnsUpdate = await getColumns(options.statement, compiledUpdateQuery, 'update');
     const columnsWhere = await getColumns(options.statement, compiledUpdateQuery, 'select');
     columnsUpdate = columnsUpdate.concat(columnsWhere);
@@ -109,36 +71,24 @@ module.exports = async(options, manager) => {
       return Promise.reject(err);
     });
 
-    // If no fetch was used, then nothing else needs to be done.
     if (options.fetch) {
-
-      //  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗  ┌┬┐┬ ┬┌─┐  ┌─┐┌─┐┌┬┐┌─┐┬ ┬
-      //  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║   │ ├─┤├┤   ├┤ ├┤  │ │  ├─┤
-      //  ╩  ╚═╝╩╚═╚  ╚═╝╩╚═╩ ╩   ┴ ┴ ┴└─┘  └  └─┘ ┴ └─┘┴ ┴
-      // Otherwise, fetch the newly inserted record
       let fetchStatementAfterUpdate = {
         select: '*',
         from: options.statement.using,
         where: {}
       };
-
-      // Build the fetch statement where clause
       let selectPks = _.map(selectReport.result, function mapPks(record) {
         return record[options.primaryKey];
       });
       fetchStatementAfterUpdate.where[options.primaryKey] = {
         in: selectPks
       };
-
-
-      // Handle case where pk value was changed:
       if (!_.isUndefined(options.statement.update[options.primaryKey])) {
-        // There should only ever be either zero or one record that were found before.
         if (selectPks.length === 0) { /* do nothing */
         } else if (selectPks.length === 1) {
-          var oldPkValue = selectPks[0];
+          const oldPkValue = selectPks[0];
           _.remove(fetchStatementAfterUpdate.where[options.primaryKey].in, oldPkValue);
-          var newPkValue = options.statement.update[options.primaryKey];
+          const newPkValue = options.statement.update[options.primaryKey];
           fetchStatementAfterUpdate.where[options.primaryKey].in.push(newPkValue);
         } else {
           return Promise.reject(new Error('Consistency violation: Updated multiple records to have the same primary key value. (PK' +
@@ -146,20 +96,10 @@ module.exports = async(options, manager) => {
         }
       }
 
-
-      //  ╔═╗╔═╗╔╦╗╔═╗╦╦  ╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-      //  ║  ║ ║║║║╠═╝║║  ║╣   │─┼┐│ │├┤ ├┬┘└┬┘
-      //  ╚═╝╚═╝╩ ╩╩  ╩╩═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴
-      // Compile the statement into a native query.
       let compiledFetchQueryAfterUpdate = await compileStatement(fetchStatementAfterUpdate).catch(err => {
         return Promise.reject(err);
       });
 
-
-      //  ╦═╗╦ ╦╔╗╔  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-      //  ╠╦╝║ ║║║║  │─┼┐│ │├┤ ├┬┘└┬┘
-      //  ╩╚═╚═╝╝╚╝  └─┘└└─┘└─┘┴└─ ┴
-      // Run the fetch query.
       let columnsFetchAfterUpdate = await getColumns(fetchStatementAfterUpdate, compiledFetchQueryAfterUpdate, 'select');
       report = await runQuery({
         connection: options.connection,

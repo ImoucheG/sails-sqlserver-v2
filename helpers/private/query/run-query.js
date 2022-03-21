@@ -1,19 +1,6 @@
-//  ██████╗ ██╗   ██╗███╗   ██╗     ██████╗ ██╗   ██╗███████╗██████╗ ██╗   ██╗
-//  ██╔══██╗██║   ██║████╗  ██║    ██╔═══██╗██║   ██║██╔════╝██╔══██╗╚██╗ ██╔╝
-//  ██████╔╝██║   ██║██╔██╗ ██║    ██║   ██║██║   ██║█████╗  ██████╔╝ ╚████╔╝
-//  ██╔══██╗██║   ██║██║╚██╗██║    ██║▄▄ ██║██║   ██║██╔══╝  ██╔══██╗  ╚██╔╝
-//  ██║  ██║╚██████╔╝██║ ╚████║    ╚██████╔╝╚██████╔╝███████╗██║  ██║   ██║
-//  ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝     ╚══▀▀═╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝
-//
-// Send a Native Query to the datastore and gracefully handle errors.
-
 const _ = require('@sailshq/lodash');
 const SQLSERVER = require('machinepack-sqlserver-adapter');
-
 module.exports = async function runQuery(options, manager) {
-  //  ╦  ╦╔═╗╦  ╦╔╦╗╔═╗╔╦╗╔═╗  ┌─┐┌─┐┌┬┐┬┌─┐┌┐┌┌─┐
-  //  ╚╗╔╝╠═╣║  ║ ║║╠═╣ ║ ║╣   │ │├─┘ │ ││ ││││└─┐
-  //   ╚╝ ╩ ╩╩═╝╩═╩╝╩ ╩ ╩ ╚═╝  └─┘┴   ┴ ┴└─┘┘└┘└─┘
   if (_.isUndefined(options) || !_.isPlainObject(options)) {
     return Promise.reject(new Error('Invalid options argument. Options must contain: connection, nativeQuery, and leased.'));
   }
@@ -25,10 +12,6 @@ module.exports = async function runQuery(options, manager) {
   if (!_.has(options, 'nativeQuery')) {
     return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid nativeQuery.'));
   }
-
-  //  ╦═╗╦ ╦╔╗╔  ┌┐┌┌─┐┌┬┐┬┬  ┬┌─┐  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-  //  ╠╦╝║ ║║║║  │││├─┤ │ │└┐┌┘├┤   │─┼┐│ │├┤ ├┬┘└┬┘
-  //  ╩╚═╚═╝╝╚╝  ┘└┘┴ ┴ ┴ ┴ └┘ └─┘  └─┘└└─┘└─┘┴└─ ┴
   const report = await SQLSERVER.sendNativeQuery({
     connection: options.connection,
     manager: manager,
@@ -42,11 +25,8 @@ module.exports = async function runQuery(options, manager) {
         return Promise.reject(err);
       }
     }
-    // If the query failed, try and parse it into a normalized format and
-    // release the connection if needed.
     let parsedError;
     if (err.code === 'queryFailed') {
-      // Parse the native query error into a normalized format
       parsedError = await SQLSERVER.parseNativeQueryError({
         nativeQueryError: err
       }).catch(async e => {
@@ -57,26 +37,19 @@ module.exports = async function runQuery(options, manager) {
       });
       return Promise.reject(parsedError);
     }
-    // If the catch all error was used, return an error instance instead of
-    // the footprint.
-    var catchAllError = false;
-
+    let catchAllError = false;
     if (!parsedError || parsedError.footprint.identity === 'catchall') {
       catchAllError = true;
     }
 
-    // If this shouldn't disconnect the connection, just return the normalized
-    // error with the footprint.
     if (!options.disconnectOnError) {
       if (catchAllError) {
         return Promise.reject(report.error);
       }
-      return Promise.reject(parsedError);
+      return Promise.reject();
     }
   });
-  // If a custom primary key was used and the record has an `insert` query
-  // type, build a manual insert report because we don't have the actual
-  // value that was used.
+
   if (options.customPrimaryKey) {
     return Promise.resolve({
       result: {
@@ -85,11 +58,6 @@ module.exports = async function runQuery(options, manager) {
     });
   }
 
-
-  //  ╔═╗╔═╗╦═╗╔═╗╔═╗  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬  ┬─┐┌─┐┌─┐┬ ┬┬ ┌┬┐┌─┐
-  //  ╠═╝╠═╣╠╦╝╚═╗║╣   │─┼┐│ │├┤ ├┬┘└┬┘  ├┬┘├┤ └─┐│ ││  │ └─┐
-  //  ╩  ╩ ╩╩╚═╚═╝╚═╝  └─┘└└─┘└─┘┴└─ ┴   ┴└─└─┘└─┘└─┘┴─┘┴ └─┘
-  // If there was a query type given, parse the results.
   if (report) {
     let queryResults = report.result;
     if (options.queryType) {

@@ -1,18 +1,3 @@
-//   ██████╗██████╗ ███████╗ █████╗ ████████╗███████╗    ███████╗ █████╗  ██████╗██╗  ██╗
-//  ██╔════╝██╔══██╗██╔════╝██╔══██╗╚══██╔══╝██╔════╝    ██╔════╝██╔══██╗██╔════╝██║  ██║
-//  ██║     ██████╔╝█████╗  ███████║   ██║   █████╗      █████╗  ███████║██║     ███████║
-//  ██║     ██╔══██╗██╔══╝  ██╔══██║   ██║   ██╔══╝      ██╔══╝  ██╔══██║██║     ██╔══██║
-//  ╚██████╗██║  ██║███████╗██║  ██║   ██║   ███████╗    ███████╗██║  ██║╚██████╗██║  ██║
-//   ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚══════╝    ╚══════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
-//
-//   █████╗  ██████╗████████╗██╗ ██████╗ ███╗   ██╗
-//  ██╔══██╗██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║
-//  ███████║██║        ██║   ██║██║   ██║██╔██╗ ██║
-//  ██╔══██║██║        ██║   ██║██║   ██║██║╚██╗██║
-//  ██║  ██║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║
-//  ╚═╝  ╚═╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
-//
-
 module.exports = require('machine').build({
   friendlyName: 'Create Each',
   description: 'Insert multiple records into a table in the database.',
@@ -58,39 +43,21 @@ module.exports = require('machine').build({
     }
   },
   fn: async function create(inputs, exits) {
-    // Dependencies
     const _ = require('@sailshq/lodash');
     const utils = require('waterline-utils');
     const Helpers = require('./private');
 
-    // Store the Query input for easier access
     let query = inputs.query;
     query.meta = query.meta || {};
 
-
-    // Find the model definition
     let model = inputs.models[query.using];
     if (!model) {
       return exits.invalidDatastore();
     }
-
-
-
-
-    // Set a flag to determine if records are being returned
     let fetchRecords = false;
-
-
-    // Build a faux ORM for use in processEachRecords
     let fauxOrm = {
       collections: inputs.models
     };
-
-
-    //  ╔═╗╦═╗╔═╗  ╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ┬─┐┌─┐┌─┐┌─┐┬─┐┌┬┐┌─┐
-    //  ╠═╝╠╦╝║╣───╠═╝╠╦╝║ ║║  ║╣ ╚═╗╚═╗  ├┬┘├┤ │  │ │├┬┘ ││└─┐
-    //  ╩  ╩╚═╚═╝  ╩  ╩╚═╚═╝╚═╝╚═╝╚═╝╚═╝  ┴└─└─┘└─┘└─┘┴└──┴┘└─┘
-    // Process each record to normalize output
     try {
       Helpers.query.preProcessRecord({
         records: query.newRecords,
@@ -100,15 +67,6 @@ module.exports = require('machine').build({
     } catch (e) {
       return exits.error(e);
     }
-
-    //  ╔═╗╔═╗╔╗╔╦  ╦╔═╗╦═╗╔╦╗  ┌┬┐┌─┐  ┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┐┌┌┬┐
-    //  ║  ║ ║║║║╚╗╔╝║╣ ╠╦╝ ║    │ │ │  └─┐ │ ├─┤ │ ├┤ │││├┤ │││ │
-    //  ╚═╝╚═╝╝╚╝ ╚╝ ╚═╝╩╚═ ╩    ┴ └─┘  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴
-    // Convert the Waterline criteria into a Waterline Query Statement. This
-    // turns it into something that is declarative and can be easily used to
-    // build a SQL query.
-    // See: https://github.com/treelinehq/waterline-query-docs for more info
-    // on Waterline Query Statements.
     let statement;
     try {
       statement = utils.query.converter({
@@ -120,44 +78,23 @@ module.exports = require('machine').build({
       return exits.error(e);
     }
 
-
-    //  ╔╦╗╔═╗╔╦╗╔═╗╦═╗╔╦╗╦╔╗╔╔═╗  ┬ ┬┬ ┬┬┌─┐┬ ┬  ┬  ┬┌─┐┬  ┬ ┬┌─┐┌─┐
-    //   ║║║╣  ║ ║╣ ╠╦╝║║║║║║║║╣   │││├─┤││  ├─┤  └┐┌┘├─┤│  │ │├┤ └─┐
-    //  ═╩╝╚═╝ ╩ ╚═╝╩╚═╩ ╩╩╝╚╝╚═╝  └┴┘┴ ┴┴└─┘┴ ┴   └┘ ┴ ┴┴─┘└─┘└─┘└─┘
-    //  ┌┬┐┌─┐  ┬─┐┌─┐┌┬┐┬ ┬┬─┐┌┐┌
-    //   │ │ │  ├┬┘├┤  │ │ │├┬┘│││
-    //   ┴ └─┘  ┴└─└─┘ ┴ └─┘┴└─┘└┘
     if (_.has(query.meta, 'fetch') && query.meta.fetch) {
       fetchRecords = true;
     }
 
-    // Find the Primary Key
-    var primaryKeyField = model.primaryKey;
-    var primaryKeyColumnName = model.definition[primaryKeyField].columnName;
+    let primaryKeyField = model.primaryKey;
+    let primaryKeyColumnName = model.definition[primaryKeyField].columnName;
 
-    // Remove primary key if the value is NULL
     _.each(statement.insert, function removeNullPrimaryKey(record) {
       if (_.isNull(record[primaryKeyColumnName])) {
         delete record[primaryKeyColumnName];
       }
     });
 
-
-    //  ╔═╗╔═╗╔═╗╦ ╦╔╗╔  ┌─┐┌─┐┌┐┌┌┐┌┌─┐┌─┐┌┬┐┬┌─┐┌┐┌
-    //  ╚═╗╠═╝╠═╣║║║║║║  │  │ │││││││├┤ │   │ ││ ││││
-    //  ╚═╝╩  ╩ ╩╚╩╝╝╚╝  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
-    //  ┌─┐┬─┐  ┬ ┬┌─┐┌─┐  ┬  ┌─┐┌─┐┌─┐┌─┐┌┬┐  ┌─┐┌─┐┌┐┌┌┐┌┌─┐┌─┐┌┬┐┬┌─┐┌┐┌
-    //  │ │├┬┘  │ │└─┐├┤   │  ├┤ ├─┤└─┐├┤  ││  │  │ │││││││├┤ │   │ ││ ││││
-    //  └─┘┴└─  └─┘└─┘└─┘  ┴─┘└─┘┴ ┴└─┘└─┘─┴┘  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
-    // Spawn a new connection for running queries on.
     const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
       return exits.badConnection(err);
     });
 
-    //  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ┌─┐┌─┐┌─┐┬ ┬
-    //  ║  ╠╦╝║╣ ╠═╣ ║ ║╣   ├┤ ├─┤│  ├─┤
-    //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  └─┘┴ ┴└─┘┴ ┴
-    // Run the Create Each util
     const insertedRecords = await Helpers.query.createEach({
       connection: reportConnection.connection,
       pool: reportConnection.pool,
@@ -165,7 +102,6 @@ module.exports = require('machine').build({
       fetch: fetchRecords,
       primaryKey: primaryKeyColumnName
     }, inputs.datastore.manager).catch(err => {
-
       if (err.footprint && err.footprint.identity === 'notUnique') {
         return exits.notUnique(err);
       }
@@ -173,7 +109,6 @@ module.exports = require('machine').build({
     });
 
     if (fetchRecords) {
-      // Process each record to normalize output
       try {
         Helpers.query.processEachRecord({
           records: insertedRecords,

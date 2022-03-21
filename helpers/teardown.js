@@ -1,11 +1,3 @@
-//  ████████╗███████╗ █████╗ ██████╗ ██████╗  ██████╗ ██╗    ██╗███╗   ██╗
-//  ╚══██╔══╝██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔═══██╗██║    ██║████╗  ██║
-//     ██║   █████╗  ███████║██████╔╝██║  ██║██║   ██║██║ █╗ ██║██╔██╗ ██║
-//     ██║   ██╔══╝  ██╔══██║██╔══██╗██║  ██║██║   ██║██║███╗██║██║╚██╗██║
-//     ██║   ███████╗██║  ██║██║  ██║██████╔╝╚██████╔╝╚███╔███╔╝██║ ╚████║
-//     ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═══╝
-//
-
 module.exports = require('machine').build({
   friendlyName: 'Teardown',
   description: 'Destroys a connection manager so that a server can be shut down cleanly.',
@@ -35,15 +27,12 @@ module.exports = require('machine').build({
     }
   },
   fn: async function teardown(inputs, exits) {
-    // Dependencies
     const Helpers = require('./private');
     let datastore = inputs.datastores[inputs.identity];
     if (!datastore) {
       return exits.error(new Error('Invalid data store identity. No data store exist with that identity.'));
     }
-    //  ╔╦╗╔═╗╔═╗╔╦╗╦═╗╔═╗╦ ╦  ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐┬─┐
-    //   ║║║╣ ╚═╗ ║ ╠╦╝║ ║╚╦╝  │││├─┤│││├─┤│ ┬├┤ ├┬┘
-    //  ═╩╝╚═╝╚═╝ ╩ ╩╚═╚═╝ ╩   ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘┴└─
+
     let manager = datastore.manager;
     if (!manager) {
       return exits.error(new Error('Missing manager for this data store. The data store may be in the process of being destroyed.'));
@@ -51,9 +40,7 @@ module.exports = require('machine').build({
     await Helpers.connection.destroyManager(manager).catch(err => {
       return exits.error(err);
     });
-    // Delete the rest of the data from the data store
     delete inputs.datastores[inputs.identity];
-    // Delete the model definitions
     delete inputs.modelDefinitions[inputs.identity];
     return exits.success();
   }

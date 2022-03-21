@@ -1,27 +1,11 @@
-//  ██████╗ ██╗   ██╗██╗██╗     ██████╗     ███████╗ ██████╗██╗  ██╗███████╗███╗   ███╗ █████╗
-//  ██╔══██╗██║   ██║██║██║     ██╔══██╗    ██╔════╝██╔════╝██║  ██║██╔════╝████╗ ████║██╔══██╗
-//  ██████╔╝██║   ██║██║██║     ██║  ██║    ███████╗██║     ███████║█████╗  ██╔████╔██║███████║
-//  ██╔══██╗██║   ██║██║██║     ██║  ██║    ╚════██║██║     ██╔══██║██╔══╝  ██║╚██╔╝██║██╔══██║
-//  ██████╔╝╚██████╔╝██║███████╗██████╔╝    ███████║╚██████╗██║  ██║███████╗██║ ╚═╝ ██║██║  ██║
-//  ╚═════╝  ╚═════╝ ╚═╝╚══════╝╚═════╝     ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝
-//
-// Build a schema object that is suitable for using in a Create Table query.
-
-var _ = require('@sailshq/lodash');
-
+const _ = require('@sailshq/lodash');
 module.exports = function buildSchema(definition) {
   if (!definition) {
     throw new Error('Build Schema requires a valid definition.');
   }
-
-  //  ╔╗╔╔═╗╦═╗╔╦╗╔═╗╦  ╦╔═╗╔═╗  ┌┬┐┬ ┬┌─┐┌─┐
-  //  ║║║║ ║╠╦╝║║║╠═╣║  ║╔═╝║╣    │ └┬┘├─┘├┤
-  //  ╝╚╝╚═╝╩╚═╩ ╩╩ ╩╩═╝╩╚═╝╚═╝   ┴  ┴ ┴  └─┘
   // TODO: move this code inline to eliminate unnecessary function declaration
-  var normalizeType = function normalizeType(type) {
+  const normalizeType = function normalizeType(type) {
     switch (type.toLowerCase()) {
-
-      // Default types from sails-hook-orm (for automigrations)
       case '_number':
         return 'REAL';
       case '_numberkey':
@@ -40,44 +24,33 @@ module.exports = function buildSchema(definition) {
         return 'LONGTEXT';
       case '_ref':
         return 'LONGTEXT';
-
-      // Sensible MySQL-specific defaults for common things folks might try to use.
-      // (FUTURE: log warnings suggesting proper usage when any of these synonyms are invoked)
       case 'varchar':
         return 'VARCHAR(255)';
-
       default:
         return type;
     }
   };
-
-  // Build up a string of column attributes
-  var columns = _.map(definition, function map(attribute, name) {
+  const columns = _.map(definition, function map(attribute, name) {
     if (_.isString(attribute)) {
-      var val = attribute;
+      const val = attribute;
       attribute = {};
       attribute.type = val;
     }
 
-    var type = normalizeType(attribute.columnType);
-    var nullable = attribute.notNull && 'NOT NULL';
-    var unique = attribute.unique && 'UNIQUE';
-    var autoIncrement = attribute.autoIncrement && 'AUTO_INCREMENT';
+    const type = normalizeType(attribute.columnType);
+    const nullable = attribute.notNull && 'NOT NULL';
+    const unique = attribute.unique && 'UNIQUE';
+    const autoIncrement = attribute.autoIncrement && 'AUTO_INCREMENT';
 
     return _.compact(['`' + name + '`', type, nullable, unique, autoIncrement]).join(' ');
   }).join(',');
 
-  // Grab the Primary Key
-  var primaryKeys = _.keys(_.pick(definition, function findPK(attribute) {
+  const primaryKeys = _.keys(_.pick(definition, function findPK(attribute) {
     return attribute.primaryKey;
   }));
 
-  // Add the Primary Key to the definition
-  var constraints = _.compact([
+  const constraints = _.compact([
     primaryKeys.length && 'PRIMARY KEY (' + primaryKeys.join(',') + ')'
   ]).join(', ');
-
-  var schema = _.compact([columns, constraints]).join(', ');
-
-  return schema;
+  return  _.compact([columns, constraints]).join(', ');
 };

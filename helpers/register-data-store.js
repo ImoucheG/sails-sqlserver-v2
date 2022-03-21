@@ -59,7 +59,6 @@ module.exports = require('machine').build({
     try {
       _.each(inputs.models, function checkPrimaryKey(modelDef, modelIdentity) {
         let primaryKeyAttr = modelDef.definition[modelDef.primaryKey];
-
         if (primaryKeyAttr.required !== true && (!primaryKeyAttr.autoMigrations || primaryKeyAttr.autoMigrations.autoIncrement !== true)) {
           return exits.badConfiguration(new Error('In model `' + modelIdentity + '`, primary key `' + modelDef.primaryKey + '` must have' +
             ' either' +

@@ -1,11 +1,3 @@
-//  ███████╗███████╗██╗     ███████╗ ██████╗████████╗     █████╗  ██████╗████████╗██╗ ██████╗ ███╗   ██╗
-//  ██╔════╝██╔════╝██║     ██╔════╝██╔════╝╚══██╔══╝    ██╔══██╗██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║
-//  ███████╗█████╗  ██║     █████╗  ██║        ██║       ███████║██║        ██║   ██║██║   ██║██╔██╗ ██║
-//  ╚════██║██╔══╝  ██║     ██╔══╝  ██║        ██║       ██╔══██║██║        ██║   ██║██║   ██║██║╚██╗██║
-//  ███████║███████╗███████╗███████╗╚██████╗   ██║       ██║  ██║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║
-//  ╚══════╝╚══════╝╚══════╝╚══════╝ ╚═════╝   ╚═╝       ╚═╝  ╚═╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
-//
-
 module.exports = require('machine').build({
   friendlyName: 'Select',
   description: 'Find record(s) in the database.',
@@ -47,37 +39,17 @@ module.exports = require('machine').build({
     }
   },
   fn: async function select(inputs, exits) {
-    // Dependencies
-    const _ = require('@sailshq/lodash');
     const WLUtils = require('waterline-utils');
     const Converter = WLUtils.query.converter;
     const Helpers = require('./private');
 
-
-    // Store the Query input for easier access
     let query = inputs.query;
     query.meta = query.meta || {};
 
-
-    // Find the model definition
     let model = inputs.models[query.using];
     if (!model) {
       return exits.invalidDatastore();
     }
-
-
-    // Set a flag if a leased connection from outside the adapter was used or not.
-    let leased = _.has(query.meta, 'leasedConnection');
-
-
-    //  ╔═╗╔═╗╔╗╔╦  ╦╔═╗╦═╗╔╦╗  ┌┬┐┌─┐  ┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┐┌┌┬┐
-    //  ║  ║ ║║║║╚╗╔╝║╣ ╠╦╝ ║    │ │ │  └─┐ │ ├─┤ │ ├┤ │││├┤ │││ │
-    //  ╚═╝╚═╝╝╚╝ ╚╝ ╚═╝╩╚═ ╩    ┴ └─┘  └─┘ ┴ ┴ ┴ ┴ └─┘┴ ┴└─┘┘└┘ ┴
-    // Convert the Waterline criteria into a Waterline Query Statement. This
-    // turns it into something that is declarative and can be easily used to
-    // build a SQL query.
-    // See: https://github.com/treelinehq/waterline-query-docs for more info
-    // on Waterline Query Statements.
     let statement;
     try {
       statement = Converter({
@@ -88,29 +60,13 @@ module.exports = require('machine').build({
     } catch (e) {
       return exits.error(e);
     }
-
-
-    // Compile the original Waterline Query
     let compiledQuery = await Helpers.query.compileStatement(statement, query.meta).catch(err => {
       return exits.error(err);
     });
-
-    //  ╔═╗╔═╗╔═╗╦ ╦╔╗╔  ┌─┐┌─┐┌┐┌┌┐┌┌─┐┌─┐┌┬┐┬┌─┐┌┐┌
-    //  ╚═╗╠═╝╠═╣║║║║║║  │  │ │││││││├┤ │   │ ││ ││││
-    //  ╚═╝╩  ╩ ╩╚╩╝╝╚╝  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
-    //  ┌─┐┬─┐  ┬ ┬┌─┐┌─┐  ┬  ┌─┐┌─┐┌─┐┌─┐┌┬┐  ┌─┐┌─┐┌┐┌┌┐┌┌─┐┌─┐┌┬┐┬┌─┐┌┐┌
-    //  │ │├┬┘  │ │└─┐├┤   │  ├┤ ├─┤└─┐├┤  ││  │  │ │││││││├┤ │   │ ││ ││││
-    //  └─┘┴└─  └─┘└─┘└─┘  ┴─┘└─┘┴ ┴└─┘└─┘─┴┘  └─┘└─┘┘└┘┘└┘└─┘└─┘ ┴ ┴└─┘┘└┘
-    // Spawn a new connection for running queries on.
     const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
       return exits.badConnection(err);
     });
-
-    //  ╦═╗╦ ╦╔╗╔  ┌─┐┌─┐┬  ┌─┐┌─┐┌┬┐  ┌─┐ ┬ ┬┌─┐┬─┐┬ ┬
-    //  ╠╦╝║ ║║║║  └─┐├┤ │  ├┤ │   │   │─┼┐│ │├┤ ├┬┘└┬┘
-    //  ╩╚═╚═╝╝╚╝  └─┘└─┘┴─┘└─┘└─┘ ┴   └─┘└└─┘└─┘┴└─ ┴
     let queryType = 'select';
-
     let columns = await Helpers.query.getColumns(statement, compiledQuery);
     const report = await Helpers.query.runQuery({
       connection: reportConnection.connection,
@@ -120,19 +76,16 @@ module.exports = require('machine').build({
       meta: compiledQuery.meta,
       queryType: queryType,
       statement: {columns: columns, tableName: statement.from},
-      disconnectOnError: !leased
+      disconnectOnError: true
     }, inputs.datastore.manager).catch(err => {
-      
       return exits.error(err);
     });
-    
+
     if (report) {
       let selectRecords = report.result;
       let orm = {
         collections: inputs.models
       };
-
-      // Process each record to normalize output
       try {
         Helpers.query.processEachRecord({
           records: selectRecords,

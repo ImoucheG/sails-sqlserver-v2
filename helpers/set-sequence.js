@@ -1,11 +1,3 @@
-//  ███████╗███████╗████████╗    ███████╗███████╗ ██████╗ ██╗   ██╗███████╗███╗   ██╗ ██████╗███████╗
-//  ██╔════╝██╔════╝╚══██╔══╝    ██╔════╝██╔════╝██╔═══██╗██║   ██║██╔════╝████╗  ██║██╔════╝██╔════╝
-//  ███████╗█████╗     ██║       ███████╗█████╗  ██║   ██║██║   ██║█████╗  ██╔██╗ ██║██║     █████╗
-//  ╚════██║██╔══╝     ██║       ╚════██║██╔══╝  ██║▄▄ ██║██║   ██║██╔══╝  ██║╚██╗██║██║     ██╔══╝
-//  ███████║███████╗   ██║       ███████║███████╗╚██████╔╝╚██████╔╝███████╗██║ ╚████║╚██████╗███████╗
-//  ╚══════╝╚══════╝   ╚═╝       ╚══════╝╚══════╝ ╚══▀▀═╝  ╚═════╝ ╚══════╝╚═╝  ╚═══╝ ╚═════╝╚══════╝
-//
-
 module.exports = require('machine').build({
   friendlyName: 'Set Sequence',
   description: 'Sets the current version of a sequence from a migration.',
@@ -44,9 +36,7 @@ module.exports = require('machine').build({
     }
   },
   fn: async function select(inputs, exits) {
-    // Return a no-op.
-    setImmediate(function ensureAsync() {
-      return exits.success();
-    });
+    // TODO Implements
+    return exits.success();
   }
 });
