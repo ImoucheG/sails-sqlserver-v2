@@ -1,4 +1,4 @@
-module.exports = async function getColumns(statement, compiledQuery, type = 'select') {
+module.exports = async function getColumns(statement, compiledQuery, type = 'select', cb = null) {
   try {
     const Helpers = require('sails-sqlserver-v2/helpers/private');
     let columnsToReturn = [];
@@ -19,9 +19,8 @@ module.exports = async function getColumns(statement, compiledQuery, type = 'sel
         columnsToReturn = await Helpers.utils.getEditsColumns(statement, compiledQuery);
         break;
     }
-    return Promise.resolve(columnsToReturn);
+    return cb(undefined, columnsToReturn);
   } catch (err) {
-    console.error(err);
-    return Promise.reject(err);
+    return cb(err);
   }
 };

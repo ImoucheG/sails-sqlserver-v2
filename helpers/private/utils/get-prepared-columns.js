@@ -34,7 +34,6 @@ module.exports = async function getPreparedColumns(column, columnsValue, columns
     }
     return Promise.resolve(columnsToReturn);
   } catch (err) {
-    console.error(err);
     return Promise.reject(err);
   }
 };

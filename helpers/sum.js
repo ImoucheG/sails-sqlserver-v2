@@ -28,6 +28,9 @@ module.exports = require('machine').build({
     invalidDatastore: {
       description: 'The datastore used is invalid. It is missing key pieces.'
     },
+    queryFailed: {
+      description: 'The query used is invalid.'
+    },
     badConnection: {
       friendlyName: 'Bad connection',
       description: 'A connection either could not be obtained or there was an error using the connection.'
@@ -53,31 +56,38 @@ module.exports = require('machine').build({
         values: query.numericAttrName
       });
     } catch (e) {
-      return exits.error(e);
+      return exits.queryFailed(e);
     }
 
-    let compiledQuery = await Helpers.query.compileStatement(statement, query.meta).catch(err => {
-      return exits.error(err);
+    Helpers.query.compileStatement(statement, query.meta, (err, compiledQuery) => {
+      if (err) {
+        return exits.error(err);
+      }
+      Helpers.connection.spawnPool(inputs.datastore, (err, reportConnection) => {
+        if (err) {
+          return exits.badConnection(err);
+        }
+        Helpers.query.getColumns(statement, compiledQuery, 'sum', (err, columns) => {
+          if (err) {
+            return exits.error(err);
+          }
+          Helpers.query.runQuery({
+            connection: reportConnection.connection,
+            pool: reportConnection.pool,
+            nativeQuery: compiledQuery.nativeQuery,
+            valuesToEscape: compiledQuery.valuesToEscape,
+            statement: {columns: columns, tableName: statement.from.from},
+            meta: compiledQuery.meta,
+            queryType: 'sum',
+            disconnectOnError: true
+          }, inputs.datastore.manager, (err, report) => {
+            if (err) {
+              return exits.queryFailed(err);
+            }
+            return exits.success(report.result);
+          });
+        });
+      });
     });
-
-    const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
-      return exits.badConnection(err);
-    });
-
-    let queryType = 'sum';
-    let columns = await Helpers.query.getColumns(statement, compiledQuery, 'sum');
-    const report = await Helpers.query.runQuery({
-      connection: reportConnection.connection,
-      pool: reportConnection.pool,
-      nativeQuery: compiledQuery.nativeQuery,
-      valuesToEscape: compiledQuery.valuesToEscape,
-      statement: {columns: columns, tableName: statement.from.from},
-      meta: compiledQuery.meta,
-      queryType: queryType,
-      disconnectOnError: true
-    }, inputs.datastore.manager).catch(err => {
-      return exits.error(err);
-    });
-    return exits.success(report.result);
   }
 });

@@ -4,66 +4,79 @@ const compileStatement = require('./compile-statement');
 const getColumns = require('./get-columns');
 
 
-module.exports = async function insertRecord(options, manager) {
+module.exports = async function insertRecord(options, manager, cb) {
   if (_.isUndefined(options) || !_.isPlainObject(options)) {
-    return Promise.reject(new Error('Invalid options argument. Options must contain: connection, statement, fetch, and primaryKey.'));
+    return cb(new Error('Invalid options argument. Options must contain: connection, statement, fetch, and primaryKey.'));
   }
 
   if (!_.has(options, 'connection') || !_.isObject(options.connection)) {
-    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid connection.'));
+    return cb(new Error('Invalid option used in options argument. Missing or invalid connection.'));
   }
 
   if (!_.has(options, 'statement') || !_.isPlainObject(options.statement)) {
-    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid statement.'));
+    return cb(new Error('Invalid option used in options argument. Missing or invalid statement.'));
   }
 
   if (!_.has(options, 'primaryKey') || !_.isString(options.primaryKey)) {
-    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid primaryKey.'));
+    return cb(new Error('Invalid option used in options argument. Missing or invalid primaryKey.'));
   }
 
   if (!_.has(options, 'fetch') || !_.isBoolean(options.fetch)) {
-    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid fetch flag.'));
+    return cb(new Error('Invalid option used in options argument. Missing or invalid fetch flag.'));
   }
-  let fetchReport;
   if (options.fetch) {
-
     let fetchStatement = {
       from: options.statement.from,
       where: options.statement.where
     };
-    let compiledFetchQuery = await compileStatement(fetchStatement, options.meta).catch(e => {
-      return Promise.reject(e);
+    compileStatement(fetchStatement, options.meta, (err, compiledFetchQuery) => {
+      if (err) {
+        return cb(err);
+      }
+      getColumns(fetchStatement, compiledFetchQuery, 'select', (err, columns) => {
+        if (err) {
+          return cb(err);
+        }
+        runQuery({
+          connection: options.connection,
+          nativeQuery: compiledFetchQuery.nativeQuery,
+          statement: {columns: columns, tableName: fetchStatement.from},
+          valuesToEscape: compiledFetchQuery.valuesToEscape,
+          meta: compiledFetchQuery.meta,
+          disconnectOnError: false,
+          queryType: 'select'
+        }, manager, (err, fetchReport) => {
+          if (err) {
+            return cb(err);
+          }
+          compileStatement(options.statement, undefined, (err, compiledUpdateQuery) => {
+            if (err) {
+              return cb(err);
+            }
+            getColumns(options.statement, compiledUpdateQuery, 'destroy', (err, columns) => {
+              if (err) {
+                return cb(err);
+              }
+              runQuery({
+                connection: options.connection,
+                nativeQuery: compiledUpdateQuery.nativeQuery,
+                statement: {columns: columns, tableName: options.statement.from},
+                valuesToEscape: compiledUpdateQuery.valuesToEscape,
+                meta: compiledUpdateQuery.meta,
+                disconnectOnError: false,
+                queryType: 'destroy'
+              }, manager, (err) => {
+                if (err) {
+                  return cb(err);
+                }
+                return cb(undefined, fetchReport.result);
+              });
+            });
+          });
+        });
+      });
     });
-    const columns = await getColumns(fetchStatement, compiledFetchQuery, 'select');
-    fetchReport = await runQuery({
-      connection: options.connection,
-      nativeQuery: compiledFetchQuery.nativeQuery,
-      statement: {columns: columns, tableName: fetchStatement.from},
-      valuesToEscape: compiledFetchQuery.valuesToEscape,
-      meta: compiledFetchQuery.meta,
-      disconnectOnError: false,
-      queryType: 'select'
-    }, manager).catch(err => {
-      return Promise.reject(err);
-    });
+  } else {
+    return cb();
   }
-  let compiledUpdateQuery = await compileStatement(options.statement).catch(e => {
-    return Promise.reject(e);
-  });
-  const columns = await getColumns(options.statement, compiledUpdateQuery, 'destroy');
-  let report = await runQuery({
-    connection: options.connection,
-    nativeQuery: compiledUpdateQuery.nativeQuery,
-    statement: {columns: columns, tableName: options.statement.from},
-    valuesToEscape: compiledUpdateQuery.valuesToEscape,
-    meta: compiledUpdateQuery.meta,
-    disconnectOnError: false,
-    queryType: 'destroy'
-  }, manager).catch(err => {
-    return Promise.reject(err);
-  });
-  if (!options.fetch) {
-    return Promise.resolve(report.result);
-  }
-  return Promise.resolve(fetchReport.result);
 };

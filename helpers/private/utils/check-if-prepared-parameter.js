@@ -17,7 +17,6 @@ module.exports = async function checkIfPreparedParameter(columnCriteria, nativeQ
     }
     return Promise.resolve(correct);
   } catch (err) {
-    console.error(err);
     return Promise.reject(err);
   }
 };

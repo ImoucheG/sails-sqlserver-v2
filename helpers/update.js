@@ -67,7 +67,7 @@ module.exports = require('machine').build({
         orm: fauxOrm
       });
     } catch (e) {
-      return exits.error(e);
+      return exits.queryFailed(e);
     }
 
     let statement;
@@ -79,7 +79,7 @@ module.exports = require('machine').build({
         values: query.valuesToSet
       });
     } catch (e) {
-      return exits.error(e);
+      return exits.queryFailed(e);
     }
 
     if (_.has(query.meta, 'fetch') && query.meta.fetch) {
@@ -87,35 +87,35 @@ module.exports = require('machine').build({
     }
     let primaryKeyField = model.primaryKey;
     let primaryKeyColumnName = model.definition[primaryKeyField].columnName;
-    const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
-      return exits.badConnection(err);
-    });
-
-    const updatedRecords = await Helpers.query.update({
-      connection: reportConnection.connection,
-      pool: reportConnection.pool,
-      statement: statement,
-      fetch: fetchRecords,
-      primaryKey: primaryKeyColumnName
-    }, inputs.datastore.manager).catch(err => {
-      if (err.footprint && err.footprint.identity === 'notUnique') {
-        return exits.notUnique(err);
+    Helpers.connection.spawnPool(inputs.datastore, (err, reportConnection) => {
+      if (err) {
+        return exits.badConnection(err);
       }
-      return exits.error(err);
-    });
 
-    if (fetchRecords) {
-      try {
-        Helpers.query.processEachRecord({
-          records: updatedRecords,
-          identity: model.identity,
-          orm: fauxOrm
-        });
-      } catch (e) {
-        return exits.error(e);
-      }
-      return exits.success({records: updatedRecords});
-    }
-    return exits.success();
+      Helpers.query.update({
+        connection: reportConnection.connection,
+        pool: reportConnection.pool,
+        statement: statement,
+        fetch: fetchRecords,
+        primaryKey: primaryKeyColumnName
+      }, inputs.datastore.manager, (err, updatedRecords) => {
+        if (err) {
+          return exits.queryFailed(err);
+        }
+        if (fetchRecords) {
+          try {
+            Helpers.query.processEachRecord({
+              records: updatedRecords,
+              identity: model.identity,
+              orm: fauxOrm
+            });
+          } catch (e) {
+            return exits.queryFailed(e);
+          }
+          return exits.success(updatedRecords);
+        }
+        return exits.success();
+      });
+    });
   }
 });

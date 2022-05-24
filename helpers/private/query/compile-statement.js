@@ -1,10 +1,10 @@
 const SQLSERVER = require('machinepack-sqlserver-adapter');
-module.exports = async function compileStatement(statement, meta) {
+module.exports = async function compileStatement(statement, meta, cb) {
   const report = await SQLSERVER.compileStatement({
     statement: statement,
     meta: meta
   }).catch(err => {
-    return Promise.reject(err);
+    return cb(err);
   });
-  return Promise.resolve(report);
+  return cb(undefined, report);
 };

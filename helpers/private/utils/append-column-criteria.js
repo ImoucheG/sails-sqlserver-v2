@@ -17,7 +17,6 @@ module.exports = async function appendColumnCriteria(iteration, valueTransform) 
     }
     return Promise.resolve(valueTransform);
   } catch (err) {
-    console.error(err);
     return Promise.reject(err);
   }
 };

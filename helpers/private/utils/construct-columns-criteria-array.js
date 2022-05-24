@@ -25,7 +25,6 @@ module.exports = async function constructColumnsCriteriaArray(value, column) {
     }
     return Promise.resolve(criteria);
   } catch (err) {
-    console.error(err);
     return Promise.reject(err);
   }
 };

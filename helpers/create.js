@@ -1,6 +1,6 @@
 module.exports = require('machine').build({
   friendlyName: 'Create',
-  description: 'Insert a record into a table in the database.',
+  description: `Try Insert a record into  table in the database.`,
   inputs: {
     datastore: {
       description: 'The datastore to use for connections.',
@@ -65,7 +65,7 @@ module.exports = require('machine').build({
         orm: fauxOrm
       });
     } catch (e) {
-      return exits.error(e);
+      return exits.queryFailed(e);
     }
 
     let statement;
@@ -76,7 +76,7 @@ module.exports = require('machine').build({
         values: query.newRecord
       });
     } catch (e) {
-      return exits.error(e);
+      return exits.queryFailed(e);
     }
 
     if (_.has(query.meta, 'fetch') && query.meta.fetch) {
@@ -90,43 +90,40 @@ module.exports = require('machine').build({
       delete statement.insert[primaryKeyColumnName];
     }
 
-    const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
-      return exits.badConnection(err);
-    });
+    Helpers.connection.spawnPool(inputs.datastore, (err, reportConnection) => {
+      if (err) {
+        return exits.badConnection(err);
+      }
 
-    const insertedRecords = await Helpers.query.create({
-      connection: reportConnection.connection,
-      pool: reportConnection.pool,
-      manager: inputs.datastore.manager,
-      statement: statement,
-      fetch: fetchRecords,
-      primaryKey: primaryKeyColumnName
-    }, inputs.datastore.manager).catch(err => {
-      if (err.footprint && err.footprint.identity === 'notUnique') {
-        return exits.notUnique(err);
-      }
-      if (err.footprint && err.footprint.identity === 'queryFailed') {
-        return exits.queryFailed(err);
-      }
-      return exits.error(err);
+      Helpers.query.create({
+        connection: reportConnection.connection,
+        pool: reportConnection.pool,
+        manager: inputs.datastore.manager,
+        statement: statement,
+        fetch: fetchRecords,
+        primaryKey: primaryKeyColumnName
+      }, inputs.datastore.manager, (err, insertedRecords) => {
+        if (err) {
+          return exits.queryFailed(err);
+        }
+        if (fetchRecords && insertedRecords) {
+          try {
+            Helpers.query.processEachRecord({
+              records: insertedRecords,
+              identity: model.identity,
+              orm: fauxOrm
+            });
+          } catch (e) {
+            return exits.queryFailed(e);
+          }
+          let insertedRecord = _.first(insertedRecords);
+          return exits.success(insertedRecord);
+        } else {
+          if (insertedRecords) {
+            return exits.success();
+          }
+        }
+      });
     });
-
-    if (fetchRecords && insertedRecords) {
-      try {
-        Helpers.query.processEachRecord({
-          records: insertedRecords,
-          identity: model.identity,
-          orm: fauxOrm
-        });
-      } catch (e) {
-        return exits.error(e);
-      }
-      let insertedRecord = _.first(insertedRecords);
-      return exits.success({record: insertedRecord});
-    } else {
-      if (insertedRecords) {
-        return exits.success();
-      }
-    }
   }
 });

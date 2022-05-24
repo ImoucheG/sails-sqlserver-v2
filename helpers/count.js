@@ -25,6 +25,9 @@ module.exports = require('machine').build({
       description: 'The results of the count query.',
       outputExample: '==='
     },
+    queryFailed: {
+      description: 'The query used is invalid'
+    },
     invalidDatastore: {
       description: 'The datastore used is invalid. It is missing key pieces.'
     },
@@ -52,31 +55,40 @@ module.exports = require('machine').build({
         criteria: query.criteria
       });
     } catch (e) {
-      return exits.error(e);
+      return exits.queryFailed(e);
     }
 
-    let compiledQuery = await Helpers.query.compileStatement(statement, query.meta).catch(err => {
-      return exits.error(err);
-    });
+    Helpers.query.compileStatement(statement, query.meta, (err, compiledQuery) => {
+      if (err) {
+        return exits.error(err);
+      }
 
-    const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
-      return exits.badConnection(err);
-    });
+      Helpers.connection.spawnPool(inputs.datastore, (err, reportConnection) => {
+        if (err) {
+          return exits.badConnection(err);
+        }
 
-    let queryType = 'count';
-    let columns = await Helpers.query.getColumns(statement, compiledQuery);
-    const report = await Helpers.query.runQuery({
-      connection: reportConnection.connection,
-      pool: reportConnection.pool,
-      statement: {columns: columns, tableName: statement.from},
-      nativeQuery: compiledQuery.nativeQuery,
-      valuesToEscape: compiledQuery.valuesToEscape,
-      meta: compiledQuery.meta,
-      queryType: queryType,
-      disconnectOnError: true
-    }, inputs.datastore.manager).catch(err => {
-      return exits.error(err);
+        Helpers.query.getColumns(statement, compiledQuery, 'select', (err, columns) => {
+          if (err) {
+            return exits.error(err);
+          }
+          Helpers.query.runQuery({
+            connection: reportConnection.connection,
+            pool: reportConnection.pool,
+            statement: {columns: columns, tableName: statement.from},
+            nativeQuery: compiledQuery.nativeQuery,
+            valuesToEscape: compiledQuery.valuesToEscape,
+            meta: compiledQuery.meta,
+            queryType: 'count',
+            disconnectOnError: true
+          }, inputs.datastore.manager, (err, report) => {
+            if (err) {
+              return exits.queryFailed(err);
+            }
+            return exits.success(report.result);
+          });
+        });
+      });
     });
-    return exits.success(report.result);
   }
 });

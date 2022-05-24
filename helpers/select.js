@@ -38,15 +38,13 @@ module.exports = require('machine').build({
       outputType: 'ref'
     }
   },
-  fn: async function select(inputs, exits) {
+  fn: async function select({query, models, datastore}, exits) {
     const WLUtils = require('waterline-utils');
     const Converter = WLUtils.query.converter;
     const Helpers = require('./private');
 
-    let query = inputs.query;
     query.meta = query.meta || {};
-
-    let model = inputs.models[query.using];
+    let model = models[query.using];
     if (!model) {
       return exits.invalidDatastore();
     }
@@ -57,45 +55,51 @@ module.exports = require('machine').build({
         method: 'find',
         criteria: query.criteria
       });
-    } catch (e) {
-      return exits.error(e);
+    } catch (err) {
+      return exits.queryFailed(err);
     }
-    let compiledQuery = await Helpers.query.compileStatement(statement, query.meta).catch(err => {
-      return exits.error(err);
-    });
-    const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
-      return exits.badConnection(err);
-    });
-    let queryType = 'select';
-    let columns = await Helpers.query.getColumns(statement, compiledQuery);
-    const report = await Helpers.query.runQuery({
-      connection: reportConnection.connection,
-      pool: reportConnection.pool,
-      nativeQuery: compiledQuery.nativeQuery,
-      valuesToEscape: compiledQuery.valuesToEscape,
-      meta: compiledQuery.meta,
-      queryType: queryType,
-      statement: {columns: columns, tableName: statement.from},
-      disconnectOnError: true
-    }, inputs.datastore.manager).catch(err => {
-      return exits.error(err);
-    });
-
-    if (report) {
-      let selectRecords = report.result;
-      let orm = {
-        collections: inputs.models
-      };
-      try {
-        Helpers.query.processEachRecord({
-          records: selectRecords,
-          identity: model.identity,
-          orm: orm
-        });
-      } catch (e) {
-        return exits.error(e);
+    Helpers.query.compileStatement(statement, query.meta, (err, compiledQuery) => {
+      if (err) {
+        return exits.queryFailed(err);
       }
-      return exits.success({records: selectRecords});
-    }
+      Helpers.connection.spawnPool(datastore, (err, reportConnection) => {
+        if (err) {
+          return exits.badConnection(err);
+        }
+        Helpers.query.getColumns(statement, compiledQuery, 'select', (err, columns) => {
+          if (err) {
+            return exits.error(err);
+          }
+          Helpers.query.runQuery({
+            connection: reportConnection.connection,
+            pool: reportConnection.pool,
+            nativeQuery: compiledQuery.nativeQuery,
+            valuesToEscape: compiledQuery.valuesToEscape,
+            meta: compiledQuery.meta,
+            queryType: 'select',
+            statement: {columns: columns, tableName: statement.from},
+            disconnectOnError: true
+          }, datastore.manager, (err, report) => {
+            if (err) {
+              return exits.queryFailed(err);
+            }
+            if (report) {
+              try {
+                Helpers.query.processEachRecord({
+                  records: report.result,
+                  identity: model.identity,
+                  orm: {
+                    collections: models
+                  }
+                });
+              } catch (err) {
+                return exits.queryFailed(err);
+              }
+              return exits.success(report.result);
+            }
+          });
+        });
+      });
+    });
   }
 });

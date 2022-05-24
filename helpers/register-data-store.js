@@ -35,6 +35,10 @@ module.exports = require('machine').build({
     badConfiguration: {
       description: 'The configuration was invalid.',
       outputType: 'ref'
+    },
+    error: {
+      description: 'An error occurred',
+      outputType: 'ref'
     }
   },
   fn: async function registerDataStore(inputs, exits) {

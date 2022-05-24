@@ -10,7 +10,6 @@ module.exports = async function getEditsColumns(columnElement) {
     }
     return Promise.resolve(result);
   } catch (err) {
-    console.error(err);
     return Promise.reject(err);
   }
 };

@@ -61,7 +61,7 @@ module.exports = require('machine').build({
         criteria: query.criteria
       });
     } catch (e) {
-      return exits.error(e);
+      return exits.queryFailed(e);
     }
 
     if (_.has(query.meta, 'fetch') && query.meta.fetch) {
@@ -71,36 +71,37 @@ module.exports = require('machine').build({
     let primaryKeyField = model.primaryKey;
     let primaryKeyColumnName = model.definition[primaryKeyField].columnName;
 
-    const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
-      return exits.badConnection(err);
-    });
-
-    const destroyedRecords = await Helpers.query.destroy({
-      connection: reportConnection.connection,
-      pool: reportConnection.pool,
-      statement: statement,
-      fetch: fetchRecords,
-      primaryKey: primaryKeyColumnName
-    }, inputs.datastore.manager).catch(err => {
-      return exits.error(err);
-    });
-
-    if (fetchRecords) {
-      let orm = {
-        collections: inputs.models
-      };
-
-      try {
-        Helpers.query.processEachRecord({
-          records: destroyedRecords,
-          identity: model.identity,
-          orm: orm
-        });
-      } catch (e) {
-        return exits.error(e);
+    Helpers.connection.spawnPool(inputs.datastore, (err, reportConnection) => {
+      if (err) {
+        return exits.badConnection(err);
       }
-      return exits.success({records: destroyedRecords});
-    }
-    return exits.success();
+      Helpers.query.destroy({
+        connection: reportConnection.connection,
+        pool: reportConnection.pool,
+        statement: statement,
+        fetch: fetchRecords,
+        primaryKey: primaryKeyColumnName
+      }, inputs.datastore.manager, (err, destroyedRecords) => {
+        if (err) {
+          return exits.queryFailed(err);
+        }
+        if (fetchRecords) {
+          let orm = {
+            collections: inputs.models
+          };
+          try {
+            Helpers.query.processEachRecord({
+              records: destroyedRecords,
+              identity: model.identity,
+              orm: orm
+            });
+          } catch (e) {
+            return exits.queryFailed(e);
+          }
+          return exits.success(destroyedRecords);
+        }
+        return exits.success();
+      });
+    });
   }
 });

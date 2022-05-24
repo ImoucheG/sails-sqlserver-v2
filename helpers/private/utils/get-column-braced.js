@@ -12,7 +12,6 @@ module.exports = async function getColumnBraced(column) {
     }
     return Promise.resolve(columnsBraced);
   } catch (err) {
-    console.error(err);
     return Promise.reject(err);
   }
 };

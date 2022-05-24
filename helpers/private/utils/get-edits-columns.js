@@ -12,7 +12,6 @@ module.exports = async function getEditsColumns(statement) {
     }
     return Promise.resolve(columnsToReturn);
   } catch (err) {
-    console.error(err);
     return Promise.reject(err);
   }
 };

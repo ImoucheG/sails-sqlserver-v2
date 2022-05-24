@@ -25,7 +25,6 @@ module.exports = async function getStringParameterSection(compiledQuery, columnC
     }
     return Promise.resolve({columnsPassed, sql});
   } catch (err) {
-    console.error(err);
     return Promise.reject(err);
   }
 };

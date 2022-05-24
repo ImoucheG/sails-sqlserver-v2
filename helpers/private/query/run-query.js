@@ -1,16 +1,16 @@
 const _ = require('@sailshq/lodash');
 const SQLSERVER = require('machinepack-sqlserver-adapter');
-module.exports = async function runQuery(options, manager) {
+module.exports = async function runQuery(options, manager, cb) {
   if (_.isUndefined(options) || !_.isPlainObject(options)) {
-    return Promise.reject(new Error('Invalid options argument. Options must contain: connection, nativeQuery, and leased.'));
+    return cb(new Error('Invalid options argument. Options must contain: connection, nativeQuery, and leased.'));
   }
 
   if (!_.has(options, 'connection') || !_.isObject(options.connection)) {
-    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid connection.'));
+    return cb(new Error('Invalid option used in options argument. Missing or invalid connection.'));
   }
 
   if (!_.has(options, 'nativeQuery')) {
-    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid nativeQuery.'));
+    return cb(new Error('Invalid option used in options argument. Missing or invalid nativeQuery.'));
   }
   const report = await SQLSERVER.sendNativeQuery({
     connection: options.connection,
@@ -20,38 +20,20 @@ module.exports = async function runQuery(options, manager) {
     valuesToEscape: options.valuesToEscape,
     meta: options.meta
   }).catch(async err => {
-    if (!err.code) {
-      if (!options.disconnectOnError) {
-        return Promise.reject(err);
-      }
-    }
     let parsedError;
-    if (err.code === 'queryFailed') {
-      parsedError = await SQLSERVER.parseNativeQueryError({
-        nativeQueryError: err
-      }).catch(async e => {
-        if (!options.disconnectOnError) {
-          return Promise.reject(e);
-        }
-        return Promise.resolve();
-      });
-      return Promise.reject(parsedError);
-    }
-    let catchAllError = false;
-    if (!parsedError || parsedError.footprint.identity === 'catchall') {
-      catchAllError = true;
-    }
-
-    if (!options.disconnectOnError) {
-      if (catchAllError) {
-        return Promise.reject(report.error);
+    parsedError = await SQLSERVER.parseNativeQueryError({
+      nativeQueryError: err
+    }).catch(async e => {
+      if (!options.disconnectOnError) {
+        return cb(e);
       }
-      return Promise.reject();
-    }
+      return cb(e);
+    });
+    return cb(parsedError);
   });
 
   if (options.customPrimaryKey) {
-    return Promise.resolve({
+    return cb(undefined, {
       result: {
         inserted: options.customPrimaryKey
       }
@@ -65,11 +47,11 @@ module.exports = async function runQuery(options, manager) {
         queryType: options.queryType,
         nativeQueryResult: report.result
       }).catch(e => {
-        return Promise.reject(e);
+        return cb(e);
       });
     }
-    return Promise.resolve(queryResults);
+    return cb(undefined, queryResults);
   } else {
-    return Promise.reject(new Error('Invalid option used in options argument. Missing or invalid nativeQuery.' + options.nativeQuery));
+    return cb(new Error('Invalid option used in options argument. Missing or invalid nativeQuery.' + options.nativeQuery));
   }
 };

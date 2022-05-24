@@ -1,3 +1,4 @@
+const Helpers = require('./private');
 module.exports = require('machine').build({
   friendlyName: 'Join',
   description: 'Support native joins on the database.',
@@ -75,126 +76,148 @@ module.exports = require('machine').build({
       return exits.error(e);
     }
 
-    let compiledQuery = await Helpers.query.compileStatement(statements.parentStatement, meta).catch(err => {
-      return exits.error(err);
-    });
-
-    const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
-      return exits.error(err);
-    });
-
-    let columns = await Helpers.query.getColumns(statements.parentStatement, compiledQuery);
-    const parentResults = await Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager,
-      compiledQuery.nativeQuery, compiledQuery.valuesToEscape,
-      {columns: columns, tableName: statements.parentStatement.from}, compiledQuery.meta).catch(async err => {
-      if (err.exit === 'queryFailed') {
-        return exits.queryFailed(err);
-      }
-      return exits.error(err);
-    });
-    if (parentResults) {
-      if (!_.has(inputs.query, 'joins') || !parentResults.length) {
-        return exits.success(parentResults);
+    Helpers.query.compileStatement(statements.parentStatement, meta, (err, compiledQuery) => {
+      if (err) {
+        return exits.error(err);
       }
 
-      let sortedResults;
-      try {
-        sortedResults = WLUtils.joins.detectChildrenRecords(primaryKeyColumnName, parentResults);
-      } catch (e) {
-        return exits.error(e);
-      }
-
-      let queryCache;
-      try {
-        queryCache = Helpers.query.initializeQueryCache({
-          instructions: statements.instructions,
-          models: inputs.models,
-          sortedResults: sortedResults
-        });
-      } catch (e) {
-        return exits.error(e);
-      }
-
-      try {
-        queryCache.setParents(sortedResults.parents);
-      } catch (e) {
-        return exits.error(e);
-      }
-
-      if (!statements.childStatements || !statements.childStatements.length) {
-        let combinedResults;
-        try {
-          combinedResults = queryCache.combineRecords();
-        } catch (e) {
-          return exits.error(e);
+      Helpers.connection.spawnPool(inputs.datastore, (err, reportConnection) => {
+        if (err) {
+          return exits.badConnection(err);
         }
 
-        try {
-          Helpers.query.processEachRecord({
-            records: combinedResults,
-            identity: model.identity,
-            orm: orm
-          });
-        } catch (e) {
-          return exits.error(e);
-        }
-        return exits.success(combinedResults);
-      }
-
-      let parentKeys = _.map(queryCache.getParents(), function pluckPk(record) {
-        return record[primaryKeyColumnName];
-      });
-
-      for (const template of statements.childStatements) {
-        if (template.queryType === 'in') {
-          let inClause = _.pullAt(template.statement.where.and, template.statement.where.and.length - 1);
-          inClause = _.first(inClause);
-          _.each(inClause, function modifyInClause(val) {
-            val.in = parentKeys;
-          });
-          template.statement.where.and.push(inClause);
-        }
-        if (template.queryType === 'union') {
-          let unionStatements = [];
-          _.each(parentKeys, function buildUnion(parentPk) {
-            let unionStatement = _.merge({}, template.statement);
-            let andClause = _.pullAt(unionStatement.where.and, unionStatement.where.and.length - 1);
-            _.each(_.first(andClause), function replaceValue(val, key) {
-              _.first(andClause)[key] = parentPk;
-            });
-            unionStatement.where.and.push(_.first(andClause));
-            unionStatements.push(unionStatement);
-          });
-          if (unionStatements.length) {
-            template.statement = {unionAll: unionStatements};
+        Helpers.query.getColumns(statements.parentStatement, compiledQuery, 'select', (err, columns) => {
+          if (err) {
+            return exits.error(err);
           }
-        }
-        if (template.statement) {
-          let compiledQuery = await Helpers.query.compileStatement(template.statement, meta).catch(e => {
-            console.error(e);
-          });
-          let columns = await Helpers.query.getColumns(template.statement, compiledQuery);
-          const queryResults = await Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager, compiledQuery.nativeQuery,
-            compiledQuery.valuesToEscape, {
+          Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager,
+            compiledQuery.nativeQuery, compiledQuery.valuesToEscape,
+            {
               columns: columns,
-              tableName: template.statement.from
-            }, compiledQuery.meta).catch(err => {
-            console.error(err);
-          });
-          queryCache.extend(queryResults, template.instructions);
-        }
-      }
-      let combinedResults = queryCache.combineRecords();
-      try {
-        Helpers.query.processEachRecord({
-          records: combinedResults,
-          identity: model.identity,
-          orm: orm
+              tableName: statements.parentStatement.from
+            }, compiledQuery.meta, (err, parentResults) => {
+              if (err) {
+                return exits.queryFailed(err);
+              }
+              if (parentResults) {
+                if (!_.has(inputs.query, 'joins') || !parentResults.length) {
+                  return exits.success(parentResults);
+                }
+
+                let sortedResults;
+                try {
+                  sortedResults = WLUtils.joins.detectChildrenRecords(primaryKeyColumnName, parentResults);
+                } catch (e) {
+                  return exits.error(e);
+                }
+
+                let queryCache;
+                try {
+                  queryCache = Helpers.query.initializeQueryCache({
+                    instructions: statements.instructions,
+                    models: inputs.models,
+                    sortedResults: sortedResults
+                  });
+                } catch (e) {
+                  return exits.error(e);
+                }
+
+                try {
+                  queryCache.setParents(sortedResults.parents);
+                } catch (e) {
+                  return exits.error(e);
+                }
+
+                if (!statements.childStatements || !statements.childStatements.length) {
+                  let combinedResults;
+                  try {
+                    combinedResults = queryCache.combineRecords();
+                  } catch (e) {
+                    return exits.error(e);
+                  }
+
+                  try {
+                    Helpers.query.processEachRecord({
+                      records: combinedResults,
+                      identity: model.identity,
+                      orm: orm
+                    });
+                  } catch (e) {
+                    return exits.error(e);
+                  }
+                  return exits.success(combinedResults);
+                }
+
+                let parentKeys = _.map(queryCache.getParents(), function pluckPk(record) {
+                  return record[primaryKeyColumnName];
+                });
+                const next = () => {
+                  let combinedResults = queryCache.combineRecords();
+                  try {
+                    Helpers.query.processEachRecord({
+                      records: combinedResults,
+                      identity: model.identity,
+                      orm: orm
+                    });
+                  } catch (e) {
+                    return exits.error(e);
+                  }
+                  return exits.success(combinedResults);
+                };
+                for (const template of statements.childStatements) {
+                  if (template.queryType === 'in') {
+                    let inClause = _.pullAt(template.statement.where.and, template.statement.where.and.length - 1);
+                    inClause = _.first(inClause);
+                    _.each(inClause, function modifyInClause(val) {
+                      val.in = parentKeys;
+                    });
+                    template.statement.where.and.push(inClause);
+                  }
+                  if (template.queryType === 'union') {
+                    let unionStatements = [];
+                    _.each(parentKeys, function buildUnion(parentPk) {
+                      let unionStatement = _.merge({}, template.statement);
+                      let andClause = _.pullAt(unionStatement.where.and, unionStatement.where.and.length - 1);
+                      _.each(_.first(andClause), function replaceValue(val, key) {
+                        _.first(andClause)[key] = parentPk;
+                      });
+                      unionStatement.where.and.push(_.first(andClause));
+                      unionStatements.push(unionStatement);
+                    });
+                    if (unionStatements.length) {
+                      template.statement = {unionAll: unionStatements};
+                    }
+                  }
+                  if (template.statement) {
+                    Helpers.query.compileStatement(template.statement, meta, (err, compiledQuery) => {
+                      if (err) {
+                        return exits.error(err);
+                      }
+                      Helpers.query.getColumns(template.statement, compiledQuery, 'select', (err, columns) => {
+                        if (err) {
+                          return exits.error(err);
+                        }
+                        Helpers.query.runNativeQuery(reportConnection, inputs.datastore.manager, compiledQuery.nativeQuery,
+                          compiledQuery.valuesToEscape, {
+                            columns: columns,
+                            tableName: template.statement.from
+                          }, compiledQuery.meta, (err, queryResults) => {
+                            if (err) {
+                              return exits.queryFailed(err);
+                            }
+                            queryCache.extend(queryResults, template.instructions);
+                            if (queryResults.length === statements.childStatements.length) {
+                              return next();
+                            }
+                          });
+                      });
+                    });
+                  }
+                }
+              }
+            });
         });
-      } catch (e) {
-        return exits.error(e);
-      }
-      return exits.success(combinedResults);
-    }
+      });
+    });
   }
 });

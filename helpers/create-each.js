@@ -1,6 +1,6 @@
 module.exports = require('machine').build({
   friendlyName: 'Create Each',
-  description: 'Insert multiple records into a table in the database.',
+  description: ' try Insert multiple records into a table in the database.',
   inputs: {
     datastore: {
       description: 'The datastore to use for connections.',
@@ -65,7 +65,7 @@ module.exports = require('machine').build({
         orm: fauxOrm
       });
     } catch (e) {
-      return exits.error(e);
+      return exits.queryFailed(e);
     }
     let statement;
     try {
@@ -75,7 +75,7 @@ module.exports = require('machine').build({
         values: query.newRecords
       });
     } catch (e) {
-      return exits.error(e);
+      return exits.queryFailed(e);
     }
 
     if (_.has(query.meta, 'fetch') && query.meta.fetch) {
@@ -91,35 +91,36 @@ module.exports = require('machine').build({
       }
     });
 
-    const reportConnection = await Helpers.connection.spawnPool(inputs.datastore).catch(err => {
-      return exits.badConnection(err);
-    });
-
-    const insertedRecords = await Helpers.query.createEach({
-      connection: reportConnection.connection,
-      pool: reportConnection.pool,
-      statement: statement,
-      fetch: fetchRecords,
-      primaryKey: primaryKeyColumnName
-    }, inputs.datastore.manager).catch(err => {
-      if (err.footprint && err.footprint.identity === 'notUnique') {
-        return exits.notUnique(err);
+    Helpers.connection.spawnPool(inputs.datastore, (err, reportConnection) => {
+      if (err) {
+        return exits.badConnection(err);
       }
-      return exits.error(err);
-    });
 
-    if (fetchRecords) {
-      try {
-        Helpers.query.processEachRecord({
-          records: insertedRecords,
-          identity: model.identity,
-          orm: fauxOrm
-        });
-      } catch (e) {
-        return exits.error(e);
-      }
-      return exits.success({records: insertedRecords});
-    }
-    return exits.success();
+      Helpers.query.createEach({
+        connection: reportConnection.connection,
+        pool: reportConnection.pool,
+        statement: statement,
+        fetch: fetchRecords,
+        primaryKey: primaryKeyColumnName
+      }, inputs.datastore.manager, (err, insertedRecords) => {
+        if (err) {
+          return exits.queryFailed(err);
+        }
+
+        if (fetchRecords) {
+          try {
+            Helpers.query.processEachRecord({
+              records: insertedRecords,
+              identity: model.identity,
+              orm: fauxOrm
+            });
+          } catch (e) {
+            return exits.queryFailed(e);
+          }
+          return exits.success(insertedRecords);
+        }
+        return exits.success();
+      });
+    });
   }
 });
