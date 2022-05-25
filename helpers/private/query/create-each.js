@@ -82,6 +82,7 @@ module.exports = async function createEach(options, manager, cb) {
           });
         });
       };
+      let indexPassed = 0;
       for (const newRecord of newRecords) {
         let statement = {
           insert: newRecord,
@@ -112,7 +113,8 @@ module.exports = async function createEach(options, manager, cb) {
                 return cb(err);
               }
               insertIds.push(report.result.inserted);
-              if (insertIds.length === newRecords.length) {
+              indexPassed++;
+              if (indexPassed === newRecords.length) {
                 return next();
               }
             });

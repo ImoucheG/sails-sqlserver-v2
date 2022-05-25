@@ -164,6 +164,7 @@ module.exports = require('machine').build({
                   }
                   return exits.success(combinedResults);
                 };
+                let indexPassed = 0;
                 for (const template of statements.childStatements) {
                   if (template.queryType === 'in') {
                     let inClause = _.pullAt(template.statement.where.and, template.statement.where.and.length - 1);
@@ -206,7 +207,8 @@ module.exports = require('machine').build({
                               return exits.queryFailed(err);
                             }
                             queryCache.extend(queryResults, template.instructions);
-                            if (queryResults.length === statements.childStatements.length) {
+                            indexPassed++;
+                            if (statements.childStatements.length === indexPassed) {
                               return next();
                             }
                           });
