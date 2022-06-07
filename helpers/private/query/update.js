@@ -131,6 +131,8 @@ module.exports = async (options, manager, cb) => {
                         });
                       });
                     });
+                  } else {
+                    return cb(undefined, undefined);
                   }
                 });
               });
