@@ -24,59 +24,59 @@ module.exports = async function insertRecord(options, manager, cb) {
   if (!_.has(options, 'fetch') || !_.isBoolean(options.fetch)) {
     return cb(new Error('Invalid option used in options argument. Missing or invalid fetch flag.'));
   }
-  if (options.fetch) {
-    let fetchStatement = {
-      from: options.statement.from,
-      where: options.statement.where
-    };
-    compileStatement(fetchStatement, options.meta, (err, compiledFetchQuery) => {
+  compileStatement(options.statement, undefined, (err, compiledUpdateQuery) => {
+    if (err) {
+      return cb(err);
+    }
+    getColumns(options.statement, compiledUpdateQuery, 'destroy', (err, columns) => {
       if (err) {
         return cb(err);
       }
-      getColumns(fetchStatement, compiledFetchQuery, 'select', (err, columns) => {
+      runQuery({
+        connection: options.connection,
+        nativeQuery: compiledUpdateQuery.nativeQuery,
+        statement: {columns: columns, tableName: options.statement.from},
+        valuesToEscape: compiledUpdateQuery.valuesToEscape,
+        meta: compiledUpdateQuery.meta,
+        disconnectOnError: false,
+        queryType: 'destroy'
+      }, manager, (err) => {
         if (err) {
           return cb(err);
         }
-        runQuery({
-          connection: options.connection,
-          nativeQuery: compiledFetchQuery.nativeQuery,
-          statement: {columns: columns, tableName: fetchStatement.from},
-          valuesToEscape: compiledFetchQuery.valuesToEscape,
-          meta: compiledFetchQuery.meta,
-          disconnectOnError: false,
-          queryType: 'select'
-        }, manager, (err, fetchReport) => {
-          if (err) {
-            return cb(err);
-          }
-          compileStatement(options.statement, undefined, (err, compiledUpdateQuery) => {
+        if (options.fetch) {
+          let fetchStatement = {
+            from: options.statement.from,
+            where: options.statement.where
+          };
+          compileStatement(fetchStatement, options.meta, (err, compiledFetchQuery) => {
             if (err) {
               return cb(err);
             }
-            getColumns(options.statement, compiledUpdateQuery, 'destroy', (err, columns) => {
+            getColumns(fetchStatement, compiledFetchQuery, 'select', (err, columns) => {
               if (err) {
                 return cb(err);
               }
               runQuery({
                 connection: options.connection,
-                nativeQuery: compiledUpdateQuery.nativeQuery,
-                statement: {columns: columns, tableName: options.statement.from},
-                valuesToEscape: compiledUpdateQuery.valuesToEscape,
-                meta: compiledUpdateQuery.meta,
+                nativeQuery: compiledFetchQuery.nativeQuery,
+                statement: {columns: columns, tableName: fetchStatement.from},
+                valuesToEscape: compiledFetchQuery.valuesToEscape,
+                meta: compiledFetchQuery.meta,
                 disconnectOnError: false,
-                queryType: 'destroy'
-              }, manager, (err) => {
+                queryType: 'select'
+              }, manager, (err, fetchReport) => {
                 if (err) {
                   return cb(err);
                 }
-                return cb(undefined, fetchReport.result);
+
               });
             });
           });
-        });
+        } else {
+          return cb();
+        }
       });
     });
-  } else {
-    return cb();
-  }
+  });
 };
