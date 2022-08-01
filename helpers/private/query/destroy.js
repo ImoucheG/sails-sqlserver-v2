@@ -69,7 +69,7 @@ module.exports = async function insertRecord(options, manager, cb) {
                 if (err) {
                   return cb(err);
                 }
-
+                return cb(undefined, fetchReport.result);
               });
             });
           });
