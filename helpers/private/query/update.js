@@ -3,7 +3,7 @@ const runQuery = require('./run-query');
 const compileStatement = require('./compile-statement');
 const getColumns = require('./get-columns');
 
-module.exports = async (options, manager, cb) => {
+module.exports = async(options, manager, cb) => {
   if (_.isUndefined(options) || !_.isPlainObject(options)) {
     return cb(new Error('Invalid options argument. Options must contain: connection, statement, fetch, and primaryKey.'));
   }
@@ -51,12 +51,13 @@ module.exports = async (options, manager, cb) => {
           return cb(err);
         }
         if (selectReport.result.length > 0) {
-          compileStatement(options.statement, undefined,(err, compiledUpdateQuery) => {
+          compileStatement(options.statement, undefined, (err, compiledUpdateQuery) => {
             if (err) {
               return cb(err);
             }
             if (compiledUpdateQuery.nativeQuery.includes('top (@p0)') &&
-              typeof compiledUpdateQuery.valuesToEscape[compiledUpdateQuery.valuesToEscape.length - 1] === 'number') {
+              typeof compiledUpdateQuery.valuesToEscape[compiledUpdateQuery.valuesToEscape.length - 1] === 'number' &&
+              typeof compiledUpdateQuery.valuesToEscape[0] !== 'number') {
               const top = compiledUpdateQuery.valuesToEscape[compiledUpdateQuery.valuesToEscape.length - 1];
               compiledUpdateQuery.valuesToEscape.unshift(top);
               compiledUpdateQuery.valuesToEscape.pop();
