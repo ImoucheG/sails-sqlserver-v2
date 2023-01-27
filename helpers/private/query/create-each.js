@@ -92,7 +92,9 @@ module.exports = async function createEach(options, manager, cb) {
           if (err) {
             return cb(err);
           }
-          getColumns(options.statement, compiledQuery, 'insert', (err, columns) => {
+          const onlyOneStatement = JSON.parse(JSON.stringify(options.statement));
+          onlyOneStatement.insert = newRecord;
+          getColumns(onlyOneStatement, compiledQuery, 'insert', (err, columns) => {
             if (err) {
               return cb(err);
             }
