@@ -34,13 +34,18 @@ module.exports = function initializeQueryCache(options) {
     } else {
       alias = popInstructions[0].alias;
     }
-    // eslint-disable-next-line no-undef
-    const uniq = new Set(options.sortedResults.children[alias].map(e => JSON.stringify(e)));
-    const items = Array.from(uniq).map(e => JSON.parse(e));
-
-    // eslint-disable-next-line no-undef
-    const uniqParents = new Set(options.sortedResults.parents.map(e => JSON.stringify(e)));
-    const itemsParents = Array.from(uniqParents).map(e => JSON.parse(e));
+    let items = [];
+    if (options.sortedResults.children[alias] && Array.isArray(options.sortedResults.children[alias])) {
+      // eslint-disable-next-line no-undef
+      const uniq = new Set(options.sortedResults.children[alias].map(e => JSON.stringify(e)));
+      items = Array.from(uniq).map(e => JSON.parse(e));
+    }
+    let itemsParents = [];
+    if (options.sortedResults.parents && Array.isArray(options.sortedResults.parents)) {
+      // eslint-disable-next-line no-undef
+      const uniqParents = new Set(options.sortedResults.parents.map(e => JSON.stringify(e)));
+      itemsParents = Array.from(uniqParents).map(e => JSON.parse(e));
+    }
 
     itemsParents.forEach((parentRecord) => {
       const cache = {
