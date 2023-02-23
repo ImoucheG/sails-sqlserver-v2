@@ -1,4 +1,3 @@
-const Helpers = require('./private');
 module.exports = require('machine').build({
   friendlyName: 'Join',
   description: 'Support native joins on the database.',
@@ -75,12 +74,10 @@ module.exports = require('machine').build({
     } catch (e) {
       return exits.error(e);
     }
-
     Helpers.query.compileStatement(statements.parentStatement, meta, (err, compiledQuery) => {
       if (err) {
         return exits.error(err);
       }
-
       Helpers.connection.spawnPool(inputs.datastore, (err, reportConnection) => {
         if (err) {
           return exits.badConnection(err);
@@ -110,18 +107,11 @@ module.exports = require('machine').build({
                 } catch (e) {
                   return exits.error(e);
                 }
-
-                let queryCache;
-                try {
-                  queryCache = Helpers.query.initializeQueryCache({
-                    instructions: statements.instructions,
-                    models: inputs.models,
-                    sortedResults: sortedResults
-                  });
-                } catch (e) {
-                  return exits.error(e);
-                }
-
+                let queryCache = Helpers.query.initializeQueryCache({
+                  instructions: statements.instructions,
+                  models: inputs.models,
+                  sortedResults: sortedResults
+                });
                 try {
                   queryCache.setParents(sortedResults.parents);
                 } catch (e) {

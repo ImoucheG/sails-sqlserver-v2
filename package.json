@@ -1,6 +1,6 @@
 {
-  "_from": "sails-sqlserver-v2@4.1.4",
-  "_id": "sails-sqlserver-v2@4.1.4",
+  "_from": "sails-sqlserver-v2@4.2.0",
+  "_id": "sails-sqlserver-v2@4.2.0",
   "_inBundle": false,
   "_integrity": "sha512-9BSksVGOsRZc23lJnekJGne6PgKOjTsna5LJQcbjMFyKTJ49AuG1vPMrRSJ7UIOYDR66t3CbuHBndRk4tXjbxA==",
   "_location": "/sails-sqlserver-v2",
@@ -8,19 +8,19 @@
   "_requested": {
     "type": "version",
     "registry": true,
-    "raw": "sails-sqlserver-v2@4.1.4",
+    "raw": "sails-sqlserver-v2@4.2.0",
     "name": "sails-sqlserver-v2",
     "escapedName": "sails-sqlserver-v2",
-    "rawSpec": "4.1.4",
+    "rawSpec": "4.2.0",
     "saveSpec": null,
-    "fetchSpec": "4.1.4"
+    "fetchSpec": "4.2.0"
   },
   "_requiredBy": [
     "/"
   ],
-  "_resolved": "https://registry.npmjs.org/sails-sqlserver-v2/-/sails-sqlserver-v2-4.1.4.tgz",
+  "_resolved": "https://registry.npmjs.org/sails-sqlserver-v2/-/sails-sqlserver-v2-4.2.0.tgz",
   "_shasum": "07e70153b4e91d2ad2db5262e612e2b1ee9409c9",
-  "_spec": "4.1.4",
+  "_spec": "4.2.0",
   "author": {
     "name": "ImoucheG"
   },
@@ -38,7 +38,7 @@
   "description": "SQL Server adapter for Sails.js",
   "devDependencies": {
     "benchmark": "^2.1.4",
-    "eslint": "^8.32.0",
+    "eslint": "^8.34.0",
     "mocha": "^10.2.0",
     "waterline-adapter-tests": "^1.0.1"
   },
@@ -64,7 +64,7 @@
     "pretest": "nodever=`node -e \"console.log('\\`node -v\\`'[1]);\"` && if [ $nodever != \"0\" ]; then npm run lint; fi",
     "test": "node ./node_modules/mocha/bin/mocha test/adapter/unit --timeout 10000 --recursive && node test/adapter/integration/runner"
   },
-  "version": "4.1.4",
+  "version": "4.2.0",
   "waterlineAdapter": {
     "waterlineVersion": "^0.13.0",
     "interfaces": [

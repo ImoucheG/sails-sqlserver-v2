@@ -14,10 +14,13 @@ module.exports = function initializeQueryCache(options) {
     throw new Error('Invalid option used in options argument. Missing or invalid sortedResults.');
   }
   const queryCache = utils.joins.queryCache();
-  _.each(options.instructions, function processInstruction(val, key) {
+  Object.keys(options.instructions).forEach((key) => {
+    const val = options.instructions[key];
     const popInstructions = val.instructions;
     const strategy = val.strategy.strategy;
-    const model = options.models[_.first(popInstructions).parent];
+    const model = options.models[popInstructions[0].parent];
+
+
     if (!model) {
       throw new Error('Invalid parent table name used when caching query results. Perhaps the join criteria is invalid?');
     }
@@ -26,12 +29,20 @@ module.exports = function initializeQueryCache(options) {
     let alias;
     let keyName;
     if (val.strategy && val.strategy.strategy === 1) {
-      alias = _.first(popInstructions).alias;
-      keyName = _.first(popInstructions).parentKey;
+      alias = popInstructions[0].alias;
+      keyName = popInstructions[0].parentKey;
     } else {
-      alias = _.first(popInstructions).alias;
+      alias = popInstructions[0].alias;
     }
-    _.each(options.sortedResults.parents, function buildAliasCache(parentRecord) {
+    // eslint-disable-next-line no-undef
+    const uniq = new Set(options.sortedResults.children[alias].map(e => JSON.stringify(e)));
+    const items = Array.from(uniq).map(e => JSON.parse(e));
+
+    // eslint-disable-next-line no-undef
+    const uniqParents = new Set(options.sortedResults.parents.map(e => JSON.stringify(e)));
+    const itemsParents = Array.from(uniqParents).map(e => JSON.parse(e));
+
+    itemsParents.forEach((parentRecord) => {
       const cache = {
         attrName: key,
         parentPkAttr: pkColumnName,
@@ -40,10 +51,9 @@ module.exports = function initializeQueryCache(options) {
         type: strategy
       };
 
-      const childKey = _.first(popInstructions).childKey;
-      const parentKey = _.first(popInstructions).parentKey;
-
-      const records = _.filter(options.sortedResults.children[alias], function findChildren(child) {
+      const childKey = popInstructions[0].childKey;
+      const parentKey = popInstructions[0].parentKey;
+      const records = items.filter((child) => {
         if (strategy === 3) {
           return child._parent_fk === parentRecord[parentKey];
         }
@@ -51,7 +61,7 @@ module.exports = function initializeQueryCache(options) {
       });
 
       if (strategy === 3) {
-        _.each(records, function cleanRecords(record) {
+        records.forEach((record) => {
           delete record._parent_fk;
         });
       }
