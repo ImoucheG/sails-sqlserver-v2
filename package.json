@@ -31,7 +31,7 @@
     "@sailshq/lodash": "^3.10.4",
     "async": "^3.2.4",
     "machine": "^15.2.3",
-    "machinepack-sqlserver-adapter": "^4.1.12",
+    "machinepack-sqlserver-adapter": "^4.1.13",
     "waterline-utils": "1.4.5"
   },
   "deprecated": false,
